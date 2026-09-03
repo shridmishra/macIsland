@@ -3,7 +3,8 @@ import SwiftUI
 // MARK: - IslandContainerView
 // The root SwiftUI view of the Island.
 // Renders the pure pitch-black Dynamic Island container merging flush with the display bezel.
-// Features subtle, gentle top fillets and clean rounded bottom corners (zero borders, zero drop shadows).
+// Features signature outward curves (concave flares) at the top corners in both collapsed and expanded states,
+// with smooth rounded bottom corners (zero borders, zero drop shadows).
 // All size, position, shape, and element animations occur fluidly on the GPU:
 // - MatchedGeometryEffect for seamless element morphing (artwork and waveform)
 // - Synchronized spring physics between collapsed wings and the expanded card
@@ -31,12 +32,12 @@ public struct IslandContainerView: View {
         let isExpanded = windowManager.islandState.isExpanded
         let width = isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth
         let height = isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
-        let flareRadius: CGFloat = 5
-        let bottomRadius: CGFloat = isExpanded ? 18 : 10
+        let flareRadius: CGFloat = isExpanded ? 10 : 6
+        let bottomRadius: CGFloat = isExpanded ? 20 : 10
         let islandShape = NotchedIslandShape(flareRadius: flareRadius, bottomRadius: bottomRadius)
         
         ZStack(alignment: .top) {
-            // Background black shape container (pure pitch black, seamless cutout blend, no border)
+            // Background black shape container (pure pitch black, seamless cutout blend, outward top curves)
             ZStack(alignment: .top) {
                 if isExpanded {
                     ExpandedIslandView(
