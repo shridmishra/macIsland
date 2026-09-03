@@ -3,13 +3,11 @@ import AppKit
 
 // MARK: - ExpandedIslandView
 // The rich, interactive floating card revealed when hovering over Mac Island.
-// Refined Apple Dynamic Island aesthetic:
-// - Generous 22pt padding around all content for comfortable, premium breathing room
-// - Symmetrical optical alignment: Equalizer pulse is vertically centered with the header artwork
-// - Sleek, proportional title typography (12.5pt semibold) preventing loud/oversized text
-// - 34x34 brand artwork with continuous rounded corners
-// - 4-bar delicate hairline animated equalizer waveform
-// - Scannable scrubber and centered playback controls
+// Pixel-perfect alignment matching the reference Dynamic Island layout:
+// - Header: Artwork (36x36) + Track Title & Subtitle + Waveform Equalizer Pulse at its designated top-right place
+// - Scrubber: Elapsed Time + Progress Capsule + Negative Remaining Time
+// - Controls: Centered Previous / Frameless Play-Pause / Next + Dynamic Audio Route Icon
+// Participates in matchedGeometryEffect for seamless, continuous fluid expansion.
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
     public var namespace: Namespace.ID
@@ -27,42 +25,38 @@ public struct ExpandedIslandView: View {
                 let isPlaying = mediaManager.playbackState.isPlaying
                 let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
                 
-                // Top section: Service/Album Artwork + Track Details + Waveform Indicator
-                // Locked to a 34pt height row so Artwork, Text, and Equalizer share the exact same optical centerline
+                // Top section: Service/Album Artwork + Track Details + Waveform Indicator at its designated place
                 HStack(alignment: .center, spacing: 11) {
-                    ArtworkImageView(item: item, size: 34, cornerRadius: 8)
+                    ArtworkImageView(item: item, size: 36, cornerRadius: 8)
                         .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        // Title: refined size with comfortable optical tracking
+                        // Title: bold, crisp, matching reference card
                         Text(item.displayTitle)
-                            .font(.system(size: 12.5, weight: .semibold))
-                            .tracking(-0.2)
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.white)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
                         // Subtitle: Service name (YouTube, Prime Video, Netflix, Spotify) or Artist
                         Text(item.effectiveAppName)
-                            .font(.system(size: 11, weight: .regular))
+                            .font(.system(size: 11.5, weight: .medium))
                             .foregroundColor(Color.white.opacity(0.60))
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity)
                     
-                    // Waveform Audio Equalizer on the top-right:
-                    // Perfectly centered vertically on the 34pt header axis and aligned with scrubber
+                    Spacer(minLength: 8)
+                    
+                    // Waveform Audio Equalizer at its designated top-right place
                     AudioWaveformIndicator(
                         isPlaying: isPlaying,
                         color: pulseColor
                     )
                     .matchedGeometryEffect(id: "islandWaveform", in: namespace)
-                    .frame(width: 22, height: 22, alignment: .trailing)
                     .animation(.easeInOut(duration: 0.25), value: isPlaying)
                 }
-                .frame(height: 34)
                 
                 // Middle section: Scannable horizontal progress bar with timestamps
                 PlaybackProgressSlider(
@@ -100,8 +94,8 @@ public struct ExpandedIslandView: View {
                 .padding(.vertical, 6)
             }
         }
-        .padding(.horizontal, 22) // Generous 22pt horizontal padding around content
+        .padding(.horizontal, 20)
         .padding(.top, windowManager.expandedTopPadding)
-        .padding(.bottom, 15) // Comfortable bottom breathing room
+        .padding(.bottom, 14)
     }
 }
