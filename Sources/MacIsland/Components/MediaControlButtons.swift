@@ -32,11 +32,11 @@ public struct MediaControlButtons: View {
     public var body: some View {
         ZStack {
             // Centered playback buttons: Previous | Play/Pause | Next
-            HStack(spacing: 32) {
+            HStack(spacing: 26) {
                 // Previous button with tactile press feedback
                 Button(action: onPrevious) {
                     Image(systemName: "backward.fill")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(Color.white.opacity(hoverPrevious ? 1.0 : 0.85))
                 }
                 .buttonStyle(.springPress(scale: 0.88))
@@ -45,7 +45,7 @@ public struct MediaControlButtons: View {
                 // Play / Pause frameless glyph with SF Symbol smooth transition
                 Button(action: onTogglePlayPause) {
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.system(size: 19, weight: .bold))
                         .foregroundColor(.white)
                         .contentTransition(.symbolEffect(.replace))
                 }
@@ -54,7 +54,7 @@ public struct MediaControlButtons: View {
                 // Next button with tactile press feedback
                 Button(action: onNext) {
                     Image(systemName: "forward.fill")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(Color.white.opacity(hoverNext ? 1.0 : 0.85))
                 }
                 .buttonStyle(.springPress(scale: 0.88))
@@ -67,11 +67,11 @@ public struct MediaControlButtons: View {
                 HStack {
                     Spacer()
                     Image(systemName: iconName)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(Color.white.opacity(0.40))
                 }
             }
         }
-        .frame(height: 26)
+        .frame(height: 22)
     }
 }

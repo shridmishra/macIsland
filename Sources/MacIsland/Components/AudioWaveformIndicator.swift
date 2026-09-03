@@ -20,10 +20,10 @@ public struct AudioWaveformIndicator: View {
     
     // 4 sleek, proportional bars with independent frequencies
     private let barConfigs: [(speed: Double, offset: Double, minH: CGFloat, maxH: CGFloat, resting: CGFloat)] = [
-        (4.4, 0.00, 2.5, 8.0, 3.5),
-        (6.2, 0.35, 3.0, 11.5, 8.0),
-        (4.0, 0.70, 3.5, 12.0, 10.0),
-        (5.5, 0.20, 2.5, 8.5, 4.5)
+        (4.4, 0.00, 2.5, 7.0, 3.5),
+        (6.2, 0.35, 3.0, 10.5, 7.0),
+        (4.0, 0.70, 3.5, 11.0, 8.5),
+        (5.5, 0.20, 2.5, 7.5, 4.0)
     ]
     
     public var body: some View {
@@ -50,7 +50,7 @@ public struct AudioWaveformIndicator: View {
                         .frame(width: 1.8, height: dynamicHeight)
                 }
             }
-            .frame(height: 14)
+            .frame(height: 12)
         }
     }
 }

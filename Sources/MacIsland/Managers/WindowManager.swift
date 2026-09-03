@@ -51,23 +51,23 @@ public final class WindowManager: ObservableObject {
         return 28.0
     }
     
-    /// Expanded width providing generous side breathing room outside the notch ear curves
-    public let expandedWidth: CGFloat = 416
+    /// Expanded width: compact, sleek, non-intrusive (decreased from 384 to 340)
+    public let expandedWidth: CGFloat = 340
     
-    /// Expanded height providing safe vertical clearance below the physical notch and above the bottom rounded corners
+    /// Expanded height: compact card fitting snugly below the notch (decreased from 154 to 130)
     public var expandedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 154
+            return screen.notchHeight + 102
         }
-        return 168
+        return 128
     }
     
-    /// Top padding for expanded content positioning it safely below the camera notch
+    /// Top padding for expanded content so everything sits cleanly below the camera notch
     public var expandedTopPadding: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 12
+            return screen.notchHeight + 4
         }
-        return 18
+        return 10
     }
     
     private var collapseDebounceTimer: Timer?
