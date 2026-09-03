@@ -3,9 +3,11 @@ import SwiftUI
 // MARK: - MediaControlButtons
 // Native playback controls matching Apple Dynamic Island:
 // Previous, frameless Play/Pause glyph with symbol replacement transitions,
-// Next, tactile SpringPressButtonStyle with trackpad haptics, and audio route icon.
+// Next, tactile SpringPressButtonStyle with trackpad haptics,
+// and dynamic audio route icon (only displayed when external headphones/AirPods are connected).
 public struct MediaControlButtons: View {
     public let isPlaying: Bool
+    public let audioRouteIcon: String?
     public let onPrevious: () -> Void
     public let onTogglePlayPause: () -> Void
     public let onNext: () -> Void
@@ -15,11 +17,13 @@ public struct MediaControlButtons: View {
     
     public init(
         isPlaying: Bool,
+        audioRouteIcon: String? = nil,
         onPrevious: @escaping () -> Void,
         onTogglePlayPause: @escaping () -> Void,
         onNext: @escaping () -> Void
     ) {
         self.isPlaying = isPlaying
+        self.audioRouteIcon = audioRouteIcon
         self.onPrevious = onPrevious
         self.onTogglePlayPause = onTogglePlayPause
         self.onNext = onNext
@@ -58,12 +62,14 @@ public struct MediaControlButtons: View {
             }
             .frame(maxWidth: .infinity, alignment: .center)
             
-            // Audio destination route icon aligned to the far right (AirPods / Headphones)
-            HStack {
-                Spacer()
-                Image(systemName: "airpodspro")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color.white.opacity(0.40))
+            // Audio destination route icon (only rendered if external device like AirPods is connected!)
+            if let iconName = audioRouteIcon {
+                HStack {
+                    Spacer()
+                    Image(systemName: iconName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.white.opacity(0.40))
+                }
             }
         }
         .frame(height: 26)

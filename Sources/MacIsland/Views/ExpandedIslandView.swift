@@ -6,14 +6,15 @@ import AppKit
 // Pixel-perfect replica of the reference Dynamic Island layout:
 // - Header: Artwork + Track Title + Subtitle + Animated Waveform Pulse
 // - Scrubber: Elapsed Time + Progress Capsule + Negative Remaining Time
-// - Controls: Centered Previous / Frameless Play-Pause / Next + AirPods Route Icon
+// - Controls: Centered Previous / Frameless Play-Pause / Next + Dynamic Audio Route Icon
 // Participates in matchedGeometryEffect for seamless, continuous fluid expansion.
-// The pulse color dynamically matches the service brand logo color (Prime: Blue, Netflix: Red, Spotify: Green),
+// The pulse color dynamically matches the service brand logo color (Prime: Blue, Netflix/YouTube: Red, Spotify: Green),
 // or displays resting bars in muted gray when playback is paused.
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
     public var namespace: Namespace.ID
     @ObservedObject private var windowManager = WindowManager.shared
+    @ObservedObject private var routeManager = AudioRouteManager.shared
     
     public init(mediaManager: MediaManager, namespace: Namespace.ID) {
         self.mediaManager = mediaManager
@@ -21,14 +22,14 @@ public struct ExpandedIslandView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 13) {
             if let item = mediaManager.currentItem {
                 let isPlaying = mediaManager.playbackState.isPlaying
                 let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
                 
                 // Top section: Service/Album Artwork + Track Details + Waveform Indicator
-                HStack(alignment: .center, spacing: 13) {
-                    ArtworkImageView(item: item, size: 48, cornerRadius: 11)
+                HStack(alignment: .center, spacing: 12) {
+                    ArtworkImageView(item: item, size: 46, cornerRadius: 10)
                         .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                     
                     VStack(alignment: .leading, spacing: 3) {
@@ -41,20 +42,19 @@ public struct ExpandedIslandView: View {
                         
                         // Subtitle: Service name (Prime Video, YouTube, Netflix, Spotify) or Artist
                         Text(item.effectiveAppName)
-                            .font(.system(size: 12.5, weight: .regular))
-                            .foregroundColor(Color.white.opacity(0.55))
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(Color.white.opacity(0.65))
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
                     .transition(.opacity)
                     
-                    Spacer(minLength: 8)
+                    Spacer(minLength: 0)
                     
                     // Waveform Audio Equalizer on the top-right matching the brand icon color
                     AudioWaveformIndicator(
                         isPlaying: isPlaying,
-                        color: pulseColor,
-                        barCount: 5
+                        color: pulseColor
                     )
                     .matchedGeometryEffect(id: "islandWaveform", in: namespace)
                     .animation(.easeInOut(duration: 0.25), value: isPlaying)
@@ -68,9 +68,10 @@ public struct ExpandedIslandView: View {
                 )
                 .transition(.opacity.combined(with: .offset(y: 4)))
                 
-                // Bottom section: Centered Playback controls + AirPods Route icon
+                // Bottom section: Centered Playback controls + Dynamic Route icon (AirPods/Headphones)
                 MediaControlButtons(
                     isPlaying: isPlaying,
+                    audioRouteIcon: routeManager.activeRouteIcon,
                     onPrevious: { mediaManager.previousTrack() },
                     onTogglePlayPause: { mediaManager.togglePlayPause() },
                     onNext: { mediaManager.nextTrack() }
@@ -95,8 +96,8 @@ public struct ExpandedIslandView: View {
                 .padding(.vertical, 8)
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 16)
         .padding(.top, windowManager.expandedTopPadding)
-        .padding(.bottom, 20)
+        .padding(.bottom, 14)
     }
 }
