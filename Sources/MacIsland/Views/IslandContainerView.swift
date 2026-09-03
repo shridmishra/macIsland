@@ -3,10 +3,9 @@ import SwiftUI
 // MARK: - IslandContainerView
 // The root SwiftUI view of the Island.
 // Renders the pure pitch-black Dynamic Island container merging into the MacBook bezel:
-// - Flat top touching the screen edge.
-// - Smooth outward curves (flares) at top-left and top-right where it connects to the bezel.
+// - Flat top touching the screen bezel cleanly across top-left to top-right.
 // - Continuous rounded corners on the bottom.
-// - Zero borders, zero shadows.
+// - Zero borders, zero shadows, zero horns.
 @MainActor
 public struct IslandContainerView: View {
     @ObservedObject var windowManager: WindowManager
@@ -26,9 +25,8 @@ public struct IslandContainerView: View {
     
     public var body: some View {
         let isExpanded = windowManager.islandState.isExpanded
-        let flareRadius: CGFloat = isExpanded ? 12 : 8
-        let bottomRadius: CGFloat = isExpanded ? 22 : 12
-        let islandShape = NotchedIslandShape(flareRadius: flareRadius, bottomRadius: bottomRadius)
+        let bottomRadius: CGFloat = isExpanded ? 20 : 10
+        let islandShape = TopAttachedIslandShape(bottomRadius: bottomRadius)
         
         ZStack {
             if isExpanded {
@@ -46,7 +44,7 @@ public struct IslandContainerView: View {
             width: isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth,
             height: isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
         )
-        // Pure solid pitch-black background with outward top flares and rounded bottom corners
+        // Pure solid pitch-black background with flat top edge and rounded bottom corners
         .background(
             islandShape
                 .fill(Color.black)

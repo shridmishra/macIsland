@@ -35,7 +35,8 @@ public struct MediaItem: Equatable, Sendable {
         isPlaying: Bool = false,
         application: String = "Media",
         bundleIdentifier: String? = nil,
-        lastUpdated: Date = Date()
+        lastUpdated: Date = Date(),
+        service: MediaService? = nil
     ) {
         self.id = id
         self.title = title
@@ -49,15 +50,25 @@ public struct MediaItem: Equatable, Sendable {
         self.bundleIdentifier = bundleIdentifier
         self.lastUpdated = lastUpdated
         
-        // Smart Service Detection & Title Cleaning
-        let detection = MediaService.detect(
-            title: title,
-            album: album,
-            artist: artist,
-            bundleId: bundleIdentifier
-        )
-        self.service = detection.service
-        self.displayTitle = detection.cleanedTitle
+        if let explicitService = service {
+            self.service = explicitService
+            let detection = MediaService.detect(
+                title: title,
+                album: album,
+                artist: artist,
+                bundleId: bundleIdentifier
+            )
+            self.displayTitle = detection.cleanedTitle
+        } else {
+            let detection = MediaService.detect(
+                title: title,
+                album: album,
+                artist: artist,
+                bundleId: bundleIdentifier
+            )
+            self.service = detection.service
+            self.displayTitle = detection.cleanedTitle
+        }
     }
     
     /// Returns true if this media originated from a web browser (Brave, Chrome, Safari, etc.)
@@ -67,7 +78,7 @@ public struct MediaItem: Equatable, Sendable {
     }
     
     /// The user-facing application name.
-    /// If playing inside a browser (e.g. Brave), displays "Prime Video" or "Netflix" instead of the browser name.
+    /// If playing inside a browser (e.g. Brave), displays "YouTube", "Prime Video", or "Netflix".
     public var effectiveAppName: String {
         if service != .generic {
             return service.rawValue

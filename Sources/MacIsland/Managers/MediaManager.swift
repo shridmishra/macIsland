@@ -1,15 +1,12 @@
 import Foundation
 import Combine
-import SwiftUI
-import os
-
-private let logger = Logger(subsystem: "com.macisland.app", category: "MediaManager")
+import AppKit
+import os.log
 
 // MARK: - MediaManager
-// Central coordinator for media state in Mac Island.
-// Think of this like a React Context / Zustand store:
-// It holds the reactive state (`@Published var currentItem`), runs background timers for smooth
-// second-by-second playback bar interpolation, and dispatches user actions (play, pause, next).
+// Central state manager for media playback information.
+// Connects to NowPlayingProvider and automatically detects browser streaming services
+// (YouTube, Netflix, Prime Video, Spotify, etc.) via BrowserServiceDetector.
 @MainActor
 public final class MediaManager: ObservableObject {
     public static let shared = MediaManager()
@@ -20,8 +17,9 @@ public final class MediaManager: ObservableObject {
     @Published public private(set) var formattedCurrentTime: String = "0:00"
     @Published public private(set) var formattedDuration: String = "0:00"
     
-    private var provider: NowPlayingProvider
+    private let provider: NowPlayingProvider
     private var progressTicker: Timer?
+    private let logger = Logger(subsystem: "com.macisland.app", category: "MediaManager")
     
     public init(provider: NowPlayingProvider = MediaRemoteProvider()) {
         self.provider = provider
@@ -46,6 +44,40 @@ public final class MediaManager: ObservableObject {
             self.interpolatedProgress = item.progressFraction()
             self.formattedCurrentTime = MediaItem.formatTime(item.currentProgress())
             self.formattedDuration = MediaItem.formatTime(item.duration)
+            
+            // Asynchronously resolve specific media streaming service if playing inside a browser
+            if item.isBrowserMedia && item.service == .generic {
+                let bundleId = item.bundleIdentifier ?? ""
+                let appName = item.application
+                let trackTitle = item.title
+                
+                Task {
+                    if let detected = await BrowserServiceDetector.shared.detectService(
+                        bundleId: bundleId,
+                        appName: appName,
+                        trackTitle: trackTitle
+                    ) {
+                        await MainActor.run { [weak self] in
+                            guard let self = self, self.currentItem?.title == trackTitle else { return }
+                            let updated = MediaItem(
+                                id: item.id,
+                                title: item.title,
+                                artist: item.artist,
+                                album: item.album,
+                                artworkData: item.artworkData,
+                                duration: item.duration,
+                                currentTime: item.currentTime,
+                                isPlaying: item.isPlaying,
+                                application: item.application,
+                                bundleIdentifier: item.bundleIdentifier,
+                                lastUpdated: item.lastUpdated,
+                                service: detected
+                            )
+                            self.currentItem = updated
+                        }
+                    }
+                }
+            }
         } else {
             self.playbackState = .stopped
             self.interpolatedProgress = 0.0
