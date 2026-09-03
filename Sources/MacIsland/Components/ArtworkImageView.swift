@@ -9,6 +9,8 @@ public struct ArtworkImageView: View {
     public let artworkData: Data?
     public let service: MediaService
     public let isBrowserMedia: Bool
+    public let bundleIdentifier: String?
+    public let application: String?
     public let size: CGFloat
     public let cornerRadius: CGFloat
     
@@ -16,12 +18,16 @@ public struct ArtworkImageView: View {
         artworkData: Data? = nil,
         service: MediaService = .generic,
         isBrowserMedia: Bool = false,
+        bundleIdentifier: String? = nil,
+        application: String? = nil,
         size: CGFloat = 46,
         cornerRadius: CGFloat = 10
     ) {
         self.artworkData = artworkData
         self.service = service
         self.isBrowserMedia = isBrowserMedia
+        self.bundleIdentifier = bundleIdentifier
+        self.application = application
         self.size = size
         self.cornerRadius = cornerRadius
     }
@@ -30,15 +36,17 @@ public struct ArtworkImageView: View {
         self.artworkData = item?.artworkData
         self.service = item?.service ?? .generic
         self.isBrowserMedia = item?.isBrowserMedia ?? false
+        self.bundleIdentifier = item?.bundleIdentifier
+        self.application = item?.application
         self.size = size
         self.cornerRadius = cornerRadius
     }
     
     public var body: some View {
         Group {
-            // When playing in a web browser with a recognized streaming service (Prime Video, Netflix, YouTube, Spotify, etc.),
+            // When playing in a web browser with a recognized streaming service (Prime Video, Netflix, YouTube, Spotify, etc.) without album art,
             // show the media service brand icon instead of the browser logo (Brave/Chrome)!
-            if isBrowserMedia && service != .generic {
+            if isBrowserMedia && service != .generic && (artworkData == nil || artworkData?.isEmpty == true) {
                 BrandIconView(service: service, size: size, cornerRadius: cornerRadius)
             } else if let data = artworkData, let nsImage = NSImage(data: data) {
                 Image(nsImage: nsImage)
@@ -46,6 +54,11 @@ public struct ArtworkImageView: View {
                     .aspectRatio(contentMode: .fill)
             } else if service != .generic {
                 BrandIconView(service: service, size: size, cornerRadius: cornerRadius)
+            } else if let appIcon = ArtworkColorExtractor.shared.appIcon(for: bundleIdentifier, appName: application) {
+                Image(nsImage: appIcon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: size, height: size)
             } else {
                 // Sleek fallback glyph with subtle translucent background
                 ZStack {

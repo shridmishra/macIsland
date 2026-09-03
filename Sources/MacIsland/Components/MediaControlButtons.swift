@@ -7,26 +7,33 @@ import SwiftUI
 // and dynamic audio route icon (only displayed when external headphones/AirPods are connected).
 public struct MediaControlButtons: View {
     public let isPlaying: Bool
+    public let isLyricsEnabled: Bool
     public let audioRouteIcon: String?
     public let onPrevious: () -> Void
     public let onTogglePlayPause: () -> Void
     public let onNext: () -> Void
+    public let onToggleLyrics: () -> Void
     
     @State private var hoverPrevious = false
     @State private var hoverNext = false
+    @State private var hoverLyrics = false
     
     public init(
         isPlaying: Bool,
+        isLyricsEnabled: Bool = false,
         audioRouteIcon: String? = nil,
         onPrevious: @escaping () -> Void,
         onTogglePlayPause: @escaping () -> Void,
-        onNext: @escaping () -> Void
+        onNext: @escaping () -> Void,
+        onToggleLyrics: @escaping () -> Void = {}
     ) {
         self.isPlaying = isPlaying
+        self.isLyricsEnabled = isLyricsEnabled
         self.audioRouteIcon = audioRouteIcon
         self.onPrevious = onPrevious
         self.onTogglePlayPause = onTogglePlayPause
         self.onNext = onNext
+        self.onToggleLyrics = onToggleLyrics
     }
     
     public var body: some View {
@@ -62,15 +69,27 @@ public struct MediaControlButtons: View {
             }
             .frame(maxWidth: .infinity, alignment: .center)
             
-            // Audio destination route icon at the bottom-right corner (Mac / AirPods / Headphones)
-            if let iconName = audioRouteIcon {
-                HStack {
-                    Spacer()
+            // Bottom-right corner controls: Audio Route Icon + Lyrics Toggle Button
+            HStack(spacing: 12) {
+                Spacer()
+                
+                if let iconName = audioRouteIcon {
                     Image(systemName: iconName)
                         .font(.system(size: 13.5, weight: .medium))
                         .foregroundColor(Color.white.opacity(0.48))
-                        .offset(y: 2) // Optically centered with transport controls
+                        .offset(y: 1) // Optically centered with transport controls
                 }
+                
+                // Lyrics toggle button matching Apple Music Dynamic Island
+                Button(action: onToggleLyrics) {
+                    Image(systemName: isLyricsEnabled ? "quote.bubble.fill" : "quote.bubble")
+                        .font(.system(size: 13, weight: isLyricsEnabled ? .bold : .medium))
+                        .foregroundColor(isLyricsEnabled ? Color.islandTextPrimary : Color.white.opacity(hoverLyrics ? 0.85 : 0.48))
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.springPress(scale: 0.88))
+                .onHover { hoverLyrics = $0 }
+                .help(isLyricsEnabled ? "Hide Lyrics" : "Show Lyrics")
             }
         }
         .frame(height: 22)

@@ -23,4 +23,7 @@ public protocol NowPlayingProvider: AnyObject, Sendable {
     
     /// Skips to the previous track.
     func previousTrack()
+    
+    /// Seeks playback to the specified elapsed time in seconds.
+    func seek(to seconds: Double)
 }

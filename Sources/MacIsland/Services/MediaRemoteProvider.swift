@@ -149,4 +149,8 @@ public final class MediaRemoteProvider: NowPlayingProvider, @unchecked Sendable 
             self?.fetchCurrentMedia()
         }
     }
+    
+    public func seek(to seconds: Double) {
+        bridge.setElapsedTime(seconds)
+    }
 }

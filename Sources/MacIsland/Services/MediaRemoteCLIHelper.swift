@@ -122,6 +122,14 @@ public final class MediaRemoteCLIHelper: @unchecked Sendable {
                     appName = app.localizedName ?? "Media Player"
                     bundleId = app.bundleIdentifier
                 }
+                if bundleId == nil || bundleId?.contains("helper") == true {
+                    let lower = appName.lowercased()
+                    if lower.contains("brave") { bundleId = "com.brave.Browser" }
+                    else if lower.contains("chrome") { bundleId = "com.google.Chrome" }
+                    else if lower.contains("safari") { bundleId = "com.apple.Safari" }
+                    else if lower.contains("edge") { bundleId = "com.microsoft.edgemac" }
+                    else if lower.contains("arc") { bundleId = "company.thebrowser.Arc" }
+                }
                 
                 let item = MediaItem(
                     title: title,

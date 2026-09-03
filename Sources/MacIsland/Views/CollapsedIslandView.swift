@@ -65,7 +65,7 @@ public struct CollapsedIslandView: View {
             HStack(spacing: 0) {
                 ZStack {
                     if let item = item {
-                        let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
+                        let pulseColor = isPlaying ? item.pulseColor : item.pulseColor.opacity(0.75)
                         AudioWaveformIndicator(
                             isPlaying: isPlaying,
                             color: pulseColor
@@ -92,16 +92,21 @@ public struct CollapsedIslandView: View {
     private var standardCenteredLayout: some View {
         HStack(spacing: 7) {
             if let item = item {
-                let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
+                let pulseColor = isPlaying ? item.pulseColor : item.pulseColor.opacity(0.75)
                 ArtworkImageView(item: item, size: 16, cornerRadius: 4)
                     .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                 
-                Text(item.displayTitle)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color.islandTextPrimary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                MarqueeText(
+                    text: item.displayTitle,
+                    font: .system(size: 11, weight: .semibold),
+                    nsFont: .systemFont(ofSize: 11, weight: .semibold),
+                    color: Color.islandTextPrimary,
+                    isPlaying: isPlaying,
+                    speed: 26.0,
+                    holdDelay: 2.0,
+                    spacing: 28.0,
+                    fadeLength: 10.0
+                )
                 
                 AudioWaveformIndicator(
                     isPlaying: isPlaying,

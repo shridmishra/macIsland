@@ -52,13 +52,15 @@ public struct PlaybackProgressSlider: View {
                     Capsule()
                         .fill(Color.white.opacity(0.18))
                         .frame(height: isDragging ? 5 : 4)
+                        .animation(.easeInOut(duration: 0.15), value: isDragging)
                     
-                    // Filled active progress
+                    // Filled active progress (white line)
                     Capsule()
                         .fill(Color.white.opacity(0.85))
                         .frame(width: currentWidth, height: isDragging ? 5 : 4)
+                        .animation(isDragging ? nil : .linear(duration: 0.25), value: currentWidth)
                     
-                    // Blooming scrub thumb indicator visible on drag
+                    // Scrub thumb indicator visible on drag
                     if isDragging {
                         Circle()
                             .fill(Color.white)
@@ -83,14 +85,12 @@ public struct PlaybackProgressSlider: View {
                         .onEnded { value in
                             let finalProgress = max(0.0, min(1.0, Double(value.location.x / width)))
                             scrubProgress = finalProgress
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                isDragging = false
-                            }
+                            isDragging = false
                             NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
                             onSeek?(finalProgress)
                         }
                 )
-                .animation(.spring(response: 0.22, dampingFraction: 0.75), value: isDragging)
+                .animation(.easeInOut(duration: 0.15), value: isDragging)
             }
             .frame(height: 14)
             

@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import SwiftUI
 
 // MARK: - Media Item Model
 // Represents the currently active media playing on macOS.
@@ -73,8 +74,22 @@ public struct MediaItem: Equatable, Sendable {
     
     /// Returns true if this media originated from a web browser (Brave, Chrome, Safari, etc.)
     public var isBrowserMedia: Bool {
-        guard let bId = bundleIdentifier else { return false }
-        return MediaService.browserBundleIds.contains(bId)
+        if let bId = bundleIdentifier {
+            let lowerBId = bId.lowercased()
+            if lowerBId.contains("brave") || lowerBId.contains("chrome") || lowerBId.contains("safari") || lowerBId.contains("edge") || lowerBId.contains("arc") || lowerBId.contains("firefox") || lowerBId.contains("opera") || lowerBId.contains("vivaldi") {
+                return true
+            }
+            if MediaService.browserBundleIds.contains(bId) {
+                return true
+            }
+        }
+        let lowerApp = application.lowercased()
+        return lowerApp.contains("brave") || lowerApp.contains("chrome") || lowerApp.contains("safari") || lowerApp.contains("edge") || lowerApp.contains("arc") || lowerApp.contains("firefox") || lowerApp.contains("opera") || lowerApp.contains("browser")
+    }
+    
+    /// Dynamic waveform pulse accent color extracted from album artwork, service logo, or app icon
+    public var pulseColor: Color {
+        ArtworkColorExtractor.shared.color(for: self)
     }
     
     /// The user-facing application name.

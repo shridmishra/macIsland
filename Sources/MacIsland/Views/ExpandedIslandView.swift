@@ -13,6 +13,7 @@ public struct ExpandedIslandView: View {
     public var namespace: Namespace.ID
     @ObservedObject private var windowManager = WindowManager.shared
     @ObservedObject private var routeManager = AudioRouteManager.shared
+    @ObservedObject private var lyricsManager = LyricsManager.shared
     
     public init(mediaManager: MediaManager, namespace: Namespace.ID) {
         self.mediaManager = mediaManager
@@ -23,20 +24,26 @@ public struct ExpandedIslandView: View {
         VStack(spacing: 12) {
             if let item = mediaManager.currentItem {
                 let isPlaying = mediaManager.playbackState.isPlaying
-                let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
+                let pulseColor = isPlaying ? item.pulseColor : item.pulseColor.opacity(0.75)
                 
-                // Top section: Service/Album Artwork + Track Details + Waveform Indicator at its designated place
+                // Top section: Service/Album Artwork + Track Details + Waveform Indicator OR Lyrics Display
                 HStack(alignment: .center, spacing: 11) {
                     ArtworkImageView(item: item, size: 36, cornerRadius: 8)
                         .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        // Title: bold, crisp, matching reference card
-                        Text(item.displayTitle)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+                        // Title: bold, crisp, marquee animated on playback
+                        MarqueeText(
+                            text: item.displayTitle,
+                            font: .system(size: 13, weight: .bold),
+                            nsFont: .systemFont(ofSize: 13, weight: .bold),
+                            color: Color.islandTextPrimary,
+                            isPlaying: isPlaying,
+                            speed: 30.0,
+                            holdDelay: 2.0,
+                            spacing: 36.0,
+                            fadeLength: 14.0
+                        )
                         
                         // Subtitle: Service name (YouTube, Prime Video, Netflix, Spotify) or Artist
                         Text(item.effectiveAppName)
@@ -49,15 +56,23 @@ public struct ExpandedIslandView: View {
                     
                     Spacer(minLength: 8)
                     
-                    // Waveform Audio Equalizer aligned with the time indicator below
-                    AudioWaveformIndicator(
-                        isPlaying: isPlaying,
-                        color: pulseColor
-                    )
-                    .matchedGeometryEffect(id: "islandWaveform", in: namespace)
-                    .padding(.trailing, 8)
-                    .animation(.easeInOut(duration: 0.25), value: isPlaying)
+                    if lyricsManager.isLyricsEnabled {
+                        // Synchronized Lyrics View on the right side of the bar
+                        LyricsDisplayView(isPlaying: isPlaying)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    } else {
+                        // Waveform Audio Equalizer aligned with the time indicator below
+                        AudioWaveformIndicator(
+                            isPlaying: isPlaying,
+                            color: pulseColor
+                        )
+                        .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                        .padding(.trailing, 8)
+                        .animation(.easeInOut(duration: 0.25), value: isPlaying)
+                        .transition(.opacity)
+                    }
                 }
+                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: lyricsManager.isLyricsEnabled)
                 
                 // Middle section: Scannable horizontal progress bar with timestamps & interactive seek
                 PlaybackProgressSlider(
@@ -70,13 +85,15 @@ public struct ExpandedIslandView: View {
                 )
                 .transition(.opacity.combined(with: .offset(y: 3)))
                 
-                // Bottom section: Centered Playback controls + Dynamic Route icon (AirPods/Headphones)
+                // Bottom section: Centered Playback controls + Dynamic Route icon + Lyrics Toggle Button
                 MediaControlButtons(
                     isPlaying: isPlaying,
+                    isLyricsEnabled: lyricsManager.isLyricsEnabled,
                     audioRouteIcon: routeManager.activeRouteIcon,
                     onPrevious: { mediaManager.previousTrack() },
                     onTogglePlayPause: { mediaManager.togglePlayPause() },
-                    onNext: { mediaManager.nextTrack() }
+                    onNext: { mediaManager.nextTrack() },
+                    onToggleLyrics: { lyricsManager.toggleLyrics() }
                 )
                 .transition(.opacity.combined(with: .offset(y: 4)))
             } else {

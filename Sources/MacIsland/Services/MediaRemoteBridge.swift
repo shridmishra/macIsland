@@ -19,6 +19,7 @@ public final class MediaRemoteBridge: @unchecked Sendable {
     private typealias MRGetInfoFunc = @convention(c) (DispatchQueue, @escaping ([String: Any]?) -> Void) -> Void
     private typealias MRGetPIDFunc = @convention(c) (DispatchQueue, @escaping (pid_t) -> Void) -> Void
     private typealias MRSendCommandFunc = @convention(c) (Int32, AnyObject?) -> Bool
+    private typealias MRSetElapsedTimeFunc = @convention(c) (Double) -> Void
     
     // MediaRemote Command IDs
     public static let commandPlay: Int32 = 0
@@ -48,6 +49,7 @@ public final class MediaRemoteBridge: @unchecked Sendable {
     private var getInfoFn: MRGetInfoFunc?
     private var getPIDFn: MRGetPIDFunc?
     private var sendCommandFn: MRSendCommandFunc?
+    private var setElapsedTimeFn: MRSetElapsedTimeFunc?
     
     private init() {
         loadFramework()
@@ -74,6 +76,9 @@ public final class MediaRemoteBridge: @unchecked Sendable {
         }
         if let cmdSym = dlsym(handle, "MRMediaRemoteSendCommand") {
             sendCommandFn = unsafeBitCast(cmdSym, to: MRSendCommandFunc.self)
+        }
+        if let setTimeSym = dlsym(handle, "MRMediaRemoteSetElapsedTime") {
+            setElapsedTimeFn = unsafeBitCast(setTimeSym, to: MRSetElapsedTimeFunc.self)
         }
         
         isLoaded = (registerFn != nil && getInfoFn != nil)
@@ -114,5 +119,9 @@ public final class MediaRemoteBridge: @unchecked Sendable {
             return false
         }
         return sendCommandFn(command, userInfo)
+    }
+    
+    public func setElapsedTime(_ seconds: Double) {
+        setElapsedTimeFn?(seconds)
     }
 }

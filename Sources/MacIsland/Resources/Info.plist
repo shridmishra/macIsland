@@ -22,5 +22,7 @@
     <true/>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Mac Island requires Apple Events to detect streaming services and active media player names.</string>
 </dict>
 </plist>

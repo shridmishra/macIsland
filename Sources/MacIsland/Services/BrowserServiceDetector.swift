@@ -16,18 +16,62 @@ public struct BrowserMediaDetection: Sendable {
 public final class BrowserServiceDetector: @unchecked Sendable {
     public static let shared = BrowserServiceDetector()
     
-    // In-memory cache: track prefix -> detected MediaService
+    // In-memory cache: bundleId:trackTitle -> detected MediaService
     private let cache = NSCache<NSString, NSString>()
+    private var browserActiveServices: [String: MediaService] = [:]
+    private let lock = NSLock()
     
-    public init() {}
+    public init() {
+        // Run initial pre-scan for open browsers
+        preScanOpenBrowsers()
+    }
     
-    /// Synchronously returns cached service if previously detected
-    public func cachedService(bundleId: String, trackTitle: String) -> MediaService? {
-        let cacheKey = "\(bundleId):\(trackTitle)" as NSString
-        if let cached = cache.object(forKey: cacheKey) as String? {
-            return MediaService(rawValue: cached)
+    public func activeService(for identifier: String) -> MediaService? {
+        lock.lock()
+        defer { lock.unlock() }
+        let lower = identifier.lowercased()
+        for (key, service) in browserActiveServices {
+            if lower.contains(key.lowercased()) || key.lowercased().contains(lower) {
+                return service
+            }
         }
         return nil
+    }
+    
+    public func setActiveService(_ service: MediaService, for identifiers: [String]) {
+        lock.lock()
+        defer { lock.unlock() }
+        for id in identifiers {
+            browserActiveServices[id] = service
+        }
+    }
+    
+    /// Synchronously returns cached service if previously detected
+    public func cachedService(bundleId: String, trackTitle: String = "") -> MediaService? {
+        if !trackTitle.isEmpty {
+            let cacheKey = "\(bundleId):\(trackTitle)" as NSString
+            if let cached = cache.object(forKey: cacheKey) as String? {
+                return MediaService(rawValue: cached)
+            }
+        }
+        if let active = activeService(for: bundleId) {
+            return active
+        }
+        return nil
+    }
+    
+    private func preScanOpenBrowsers() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            for app in NSWorkspace.shared.runningApplications {
+                guard let name = app.localizedName, let bId = app.bundleIdentifier else { continue }
+                let lower = name.lowercased()
+                if lower.contains("brave") || lower.contains("chrome") || lower.contains("safari") || lower.contains("edge") || lower.contains("arc") {
+                    Task {
+                        _ = await self?.detectService(bundleId: bId, appName: name, trackTitle: "")
+                    }
+                }
+            }
+        }
     }
     
     /// Detects the media service and playback timeline for a browser track title.
@@ -37,20 +81,24 @@ public final class BrowserServiceDetector: @unchecked Sendable {
         appName: String,
         trackTitle: String
     ) async -> BrowserMediaDetection? {
-        guard MediaService.browserBundleIds.contains(bundleId) else {
+        let isBrowser = MediaService.browserBundleIds.contains(bundleId) ||
+            bundleId.contains("brave") || bundleId.contains("chrome") || bundleId.contains("safari") ||
+            appName.lowercased().contains("brave") || appName.lowercased().contains("chrome") || appName.lowercased().contains("safari")
+        guard isBrowser else {
             return nil
         }
         
-        // Clean title: extract search terms to match against navigator.mediaSession.metadata.title
         let stripped = trackTitle
-            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\"", with: "")
+            .replacingOccurrences(of: "\\", with: "")
             .filter { $0.isASCII || $0.isLetter || $0.isNumber || $0.isWhitespace }
         let cleanWords = stripped.split(separator: " ").prefix(2).joined(separator: " ")
-        let prefix = cleanWords.isEmpty ? String(trackTitle.prefix(8)) : cleanWords
+        let prefix = cleanWords.isEmpty ? String(trackTitle.prefix(6)) : cleanWords
         let lowerPrefix = prefix.lowercased()
         
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let targetAppName = appName.contains("Media Player") ? "Brave Browser" : appName
                 let script: String
                 if bundleId == "com.apple.Safari" {
                     script = """
@@ -61,17 +109,8 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                             repeat with w in windows
                                 repeat with t in tabs of w
                                     try
-                                        set js to do JavaScript "(() => {
-                                            const u = window.location.href;
-                                            const ms = navigator.mediaSession?.metadata;
-                                            const m = document.querySelector('video, audio');
-                                            const timeInfo = m ? (m.currentTime + ',' + m.duration) : '';
-                                            const isPlaying = m ? !m.paused : false;
-                                            const msTitle = (ms?.title || '').toLowerCase();
-                                            const tabTitle = document.title.toLowerCase();
-                                            return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying;
-                                        })()" in t
-                                        if js contains "\(lowerPrefix)" then
+                                        set js to do JavaScript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const m = document.querySelector('video, audio'); const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying; })()" in t
+                                        if "\(lowerPrefix)" is not "" and js contains "\(lowerPrefix)" then
                                             set match to js
                                             exit repeat
                                         else if js contains "|||true" and playingMatch is "" then
@@ -92,24 +131,17 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                     """
                 } else {
                     script = """
-                    tell application "\(appName)"
+                    tell application "\(targetAppName)"
                         if running then
                             set match to ""
                             set playingMatch to ""
                             repeat with w in windows
                                 repeat with t in tabs of w
                                     try
-                                        set js to execute t javascript "(() => {
-                                            const u = window.location.href;
-                                            const ms = navigator.mediaSession?.metadata;
-                                            const m = document.querySelector('video, audio');
-                                            const timeInfo = m ? (m.currentTime + ',' + m.duration) : '';
-                                            const isPlaying = m ? !m.paused : false;
-                                            const msTitle = (ms?.title || '').toLowerCase();
-                                            const tabTitle = document.title.toLowerCase();
-                                            return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying;
-                                        })()"
-                                        if js contains "\(lowerPrefix)" then
+                                        tell t
+                                            set js to execute javascript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const m = document.querySelector('video, audio'); const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying; })()"
+                                        end tell
+                                        if "\(lowerPrefix)" is not "" and js contains "\(lowerPrefix)" then
                                             set match to js
                                             exit repeat
                                         else if js contains "|||true" and playingMatch is "" then
@@ -127,10 +159,7 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                             try
                                 tell active tab of window 1
                                     set u to URL
-                                    set js to execute javascript "(() => {
-                                        const m = document.querySelector('video, audio');
-                                        return m ? (m.currentTime + ',' + m.duration) : '';
-                                    })()"
+                                    set js to execute javascript "(() => { const m = document.querySelector('video, audio'); return m ? (m.currentTime + ',' + m.duration) : ''; })()"
                                     return u + "|||" + js
                                 end tell
                             end try
@@ -140,9 +169,19 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                     """
                 }
                 
-                var error: NSDictionary?
-                if let ascript = NSAppleScript(source: script) {
-                    let res = ascript.executeAndReturnError(&error).stringValue ?? ""
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                process.arguments = ["-e", script]
+                let stdoutPipe = Pipe()
+                process.standardOutput = stdoutPipe
+                process.standardError = Pipe()
+                
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                    let res = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    
                     if !res.isEmpty {
                         let parts = res.components(separatedBy: "|||")
                         let urlStr = parts.first ?? ""
@@ -188,6 +227,7 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                         }
                         
                         if detected != .generic {
+                            self?.setActiveService(detected, for: [bundleId, appName, "Brave Browser", "com.brave.Browser"])
                             let key = "\(bundleId):\(trackTitle)" as NSString
                             self?.cache.setObject(detected.rawValue as NSString, forKey: key)
                         }
@@ -199,6 +239,8 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                         ))
                         return
                     }
+                } catch {
+                    // Ignore and return nil
                 }
                 continuation.resume(returning: nil)
             }
