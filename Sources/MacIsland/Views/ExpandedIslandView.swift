@@ -49,12 +49,13 @@ public struct ExpandedIslandView: View {
                     
                     Spacer(minLength: 8)
                     
-                    // Waveform Audio Equalizer at its designated top-right place
+                    // Waveform Audio Equalizer aligned with the time indicator below
                     AudioWaveformIndicator(
                         isPlaying: isPlaying,
                         color: pulseColor
                     )
                     .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                    .padding(.trailing, 8)
                     .animation(.easeInOut(duration: 0.25), value: isPlaying)
                 }
                 
