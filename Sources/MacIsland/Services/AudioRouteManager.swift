@@ -4,24 +4,27 @@ import Combine
 
 // MARK: - AudioRouteManager
 // Detects the active macOS audio output device using native CoreAudio APIs.
-// Matches Apple Dynamic Island:
-// - Built-in speakers -> No icon shown (nil)
-// - AirPods -> "airpodspro"
-// - Bluetooth headphones -> "headphones"
+// Intelligently maps active output device to its authentic SF Symbol:
+// - MacBook Air / Pro Speakers -> "laptopcomputer" (or "macbook")
+// - Desktop Mac (iMac, Mac mini, Studio, Pro) -> "desktopcomputer"
+// - AirPods / AirPods Pro / AirPods Max -> "airpods" / "airpodspro" / "airpodsmax"
+// - Bluetooth headphones / Earbuds -> "headphones"
 // - AirPlay -> "airplayaudio"
+// - External Display / HDMI -> "display"
+// - HomePod -> "hifispeaker.fill"
 @MainActor
 public final class AudioRouteManager: ObservableObject {
     public static let shared = AudioRouteManager()
     
-    @Published public private(set) var activeRouteIcon: String? = nil
-    @Published public private(set) var deviceName: String = "Built-in"
+    @Published public private(set) var activeRouteIcon: String? = "laptopcomputer"
+    @Published public private(set) var deviceName: String = "Mac"
     
     private var timer: Timer?
     
     public init() {
         updateRoute()
         // Check for audio route changes periodically
-        timer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.updateRoute()
             }
@@ -46,7 +49,7 @@ public final class AudioRouteManager: ObservableObject {
             &deviceID
         )
         guard status == noErr else {
-            activeRouteIcon = nil
+            activeRouteIcon = "laptopcomputer"
             return
         }
         
@@ -65,7 +68,7 @@ public final class AudioRouteManager: ObservableObject {
             &dataSize,
             &nameCF
         )
-        let name = (nameStatus == noErr && nameCF != nil) ? (nameCF!.takeRetainedValue() as String) : "Built-in"
+        let name = (nameStatus == noErr && nameCF != nil) ? (nameCF!.takeRetainedValue() as String) : "Mac"
         self.deviceName = name
         
         var transport: UInt32 = 0
@@ -85,15 +88,27 @@ public final class AudioRouteManager: ObservableObject {
         )
         
         let lowerName = name.lowercased()
-        if lowerName.contains("airpods") {
+        if lowerName.contains("airpods max") {
+            activeRouteIcon = "airpodsmax"
+        } else if lowerName.contains("airpods pro") {
             activeRouteIcon = "airpodspro"
-        } else if transport == kAudioDeviceTransportTypeBluetooth || transport == kAudioDeviceTransportTypeBluetoothLE || lowerName.contains("headphone") || lowerName.contains("buds") {
+        } else if lowerName.contains("airpods") {
+            activeRouteIcon = "airpods"
+        } else if transport == kAudioDeviceTransportTypeBluetooth || transport == kAudioDeviceTransportTypeBluetoothLE || lowerName.contains("headphone") || lowerName.contains("buds") || lowerName.contains("wh-1000") || lowerName.contains("bose") {
             activeRouteIcon = "headphones"
-        } else if transport == kAudioDeviceTransportTypeAirPlay {
+        } else if transport == kAudioDeviceTransportTypeAirPlay || lowerName.contains("airplay") {
             activeRouteIcon = "airplayaudio"
+        } else if lowerName.contains("homepod") {
+            activeRouteIcon = "hifispeaker.fill"
+        } else if lowerName.contains("apple tv") || lowerName.contains("tv") {
+            activeRouteIcon = "tv"
+        } else if transport == kAudioDeviceTransportTypeDisplayPort || transport == kAudioDeviceTransportTypeHDMI || lowerName.contains("display") || lowerName.contains("hdmi") {
+            activeRouteIcon = "display"
+        } else if lowerName.contains("imac") || lowerName.contains("mac mini") || lowerName.contains("mac studio") || lowerName.contains("mac pro") {
+            activeRouteIcon = "desktopcomputer"
         } else {
-            // Built-in speakers (MacBook Air Speakers): No icon, clean centered controls!
-            activeRouteIcon = nil
+            // Built-in MacBook Speakers (MacBook Air / MacBook Pro)
+            activeRouteIcon = "laptopcomputer"
         }
     }
     

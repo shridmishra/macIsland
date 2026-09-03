@@ -62,13 +62,13 @@ public struct MediaControlButtons: View {
             }
             .frame(maxWidth: .infinity, alignment: .center)
             
-            // Audio destination route icon (only rendered if external device like AirPods is connected!)
+            // Audio destination route icon at the bottom-right corner (Mac / AirPods / Headphones)
             if let iconName = audioRouteIcon {
                 HStack {
                     Spacer()
                     Image(systemName: iconName)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color.white.opacity(0.40))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Color.white.opacity(0.50))
                 }
             }
         }
