@@ -18,22 +18,22 @@ public enum MediaService: String, CaseIterable, Sendable {
     /// Vibrant brand colors matching the streaming service's official logo
     public var brandColor: Color {
         switch self {
-        case .primeVideo:
-            return Color(red: 0.0, green: 0.65, blue: 0.95) // Vibrant Prime Video Blue
-        case .netflix:
-            return Color(red: 0.90, green: 0.06, blue: 0.10) // Netflix Iconic Red
         case .youtube:
-            return Color(red: 1.0, green: 0.0, blue: 0.0) // YouTube Bright Red
+            return Color(red: 1.0, green: 0.0, blue: 0.0) // Pure YouTube Red #FF0000
+        case .netflix:
+            return Color(red: 0.90, green: 0.06, blue: 0.10) // Netflix Iconic Red #E50914
         case .spotify:
-            return Color(red: 0.11, green: 0.84, blue: 0.38) // Spotify Electric Green
+            return Color(red: 0.11, green: 0.84, blue: 0.38) // Spotify Electric Green #1DB954
+        case .primeVideo:
+            return Color(red: 0.0, green: 0.65, blue: 0.95) // Prime Video Cyan-Blue #00A8E1
         case .appleMusic:
-            return Color(red: 0.99, green: 0.24, blue: 0.36) // Apple Music Coral Red
+            return Color(red: 0.99, green: 0.24, blue: 0.36) // Apple Music Coral Red #FC3C44
         case .disneyPlus:
-            return Color(red: 0.07, green: 0.39, blue: 0.90) // Disney+ Royal Blue
+            return Color(red: 0.07, green: 0.39, blue: 0.90) // Disney+ Royal Blue #0063E5
         case .soundcloud:
-            return Color(red: 1.0, green: 0.35, blue: 0.0) // SoundCloud Orange
+            return Color(red: 1.0, green: 0.35, blue: 0.0) // SoundCloud Orange #FF5500
         case .twitch:
-            return Color(red: 0.57, green: 0.27, blue: 1.0) // Twitch Purple
+            return Color(red: 0.57, green: 0.27, blue: 1.0) // Twitch Purple #9146FF
         case .appleTV:
             return Color.white
         case .generic:
@@ -77,8 +77,8 @@ public enum MediaService: String, CaseIterable, Sendable {
             return (.netflix, clean)
         }
         
-        // 3. YouTube
-        if combined.contains("youtube") || combined.contains("youtu.be") {
+        // 3. YouTube (explicit name, youtu.be, or YouTube channel handles with @)
+        if combined.contains("youtube") || combined.contains("youtu.be") || combined.contains("@") {
             var clean = title
             if let range = clean.range(of: " - YouTube", options: .backwards) {
                 clean.removeSubrange(range)

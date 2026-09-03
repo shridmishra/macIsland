@@ -38,57 +38,84 @@ public final class MediaManager: ObservableObject {
     }
     
     private func updateMediaItem(_ item: MediaItem?) {
-        logger.info("🎧 [MediaManager] updateMediaItem: \(item?.title ?? "none", privacy: .public) | isPlaying: \(item?.isPlaying ?? false)")
-        self.currentItem = item
-        if let item = item {
-            self.playbackState = item.isPlaying ? .playing : .paused
-            let progress = item.currentProgress()
-            self.interpolatedProgress = item.progressFraction()
-            self.formattedCurrentTime = MediaItem.formatTime(progress)
-            self.formattedDuration = MediaItem.formatTime(item.duration)
-            
-            let remaining = max(0, item.duration - progress)
-            self.formattedRemainingTime = item.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
-            
-            // Asynchronously resolve specific media streaming service if playing inside a browser
-            if item.isBrowserMedia && item.service == .generic {
-                let bundleId = item.bundleIdentifier ?? ""
-                let appName = item.application
-                let trackTitle = item.title
-                
-                Task {
-                    if let detected = await BrowserServiceDetector.shared.detectService(
-                        bundleId: bundleId,
-                        appName: appName,
-                        trackTitle: trackTitle
-                    ) {
-                        await MainActor.run { [weak self] in
-                            guard let self = self, self.currentItem?.title == trackTitle else { return }
-                            let updated = MediaItem(
-                                id: item.id,
-                                title: item.title,
-                                artist: item.artist,
-                                album: item.album,
-                                artworkData: item.artworkData,
-                                duration: item.duration,
-                                currentTime: item.currentTime,
-                                isPlaying: item.isPlaying,
-                                application: item.application,
-                                bundleIdentifier: item.bundleIdentifier,
-                                lastUpdated: item.lastUpdated,
-                                service: detected
-                            )
-                            self.currentItem = updated
-                        }
-                    }
-                }
-            }
-        } else {
+        guard let newItem = item else {
+            self.currentItem = nil
             self.playbackState = .stopped
             self.interpolatedProgress = 0.0
             self.formattedCurrentTime = "0:00"
             self.formattedDuration = "0:00"
             self.formattedRemainingTime = "-0:00"
+            return
+        }
+        
+        // Retain previously resolved service if the track title is unchanged
+        let resolvedService: MediaService
+        if newItem.service != .generic {
+            resolvedService = newItem.service
+        } else if let existing = self.currentItem, existing.title == newItem.title, existing.service != .generic {
+            resolvedService = existing.service
+        } else if let cached = BrowserServiceDetector.shared.cachedService(bundleId: newItem.bundleIdentifier ?? "", trackTitle: newItem.title) {
+            resolvedService = cached
+        } else {
+            resolvedService = newItem.service
+        }
+        
+        let mergedItem = MediaItem(
+            id: newItem.id,
+            title: newItem.title,
+            artist: newItem.artist,
+            album: newItem.album,
+            artworkData: newItem.artworkData ?? self.currentItem?.artworkData,
+            duration: newItem.duration,
+            currentTime: newItem.currentTime,
+            isPlaying: newItem.isPlaying,
+            application: newItem.application,
+            bundleIdentifier: newItem.bundleIdentifier,
+            lastUpdated: newItem.lastUpdated,
+            service: resolvedService
+        )
+        
+        self.currentItem = mergedItem
+        self.playbackState = mergedItem.isPlaying ? .playing : .paused
+        let progress = mergedItem.currentProgress()
+        self.interpolatedProgress = mergedItem.progressFraction()
+        self.formattedCurrentTime = MediaItem.formatTime(progress)
+        self.formattedDuration = MediaItem.formatTime(mergedItem.duration)
+        
+        let remaining = max(0, mergedItem.duration - progress)
+        self.formattedRemainingTime = mergedItem.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
+        
+        // If still generic in a browser, query background tab detector
+        if mergedItem.isBrowserMedia && mergedItem.service == .generic {
+            let bundleId = mergedItem.bundleIdentifier ?? ""
+            let appName = mergedItem.application
+            let trackTitle = mergedItem.title
+            
+            Task {
+                if let detected = await BrowserServiceDetector.shared.detectService(
+                    bundleId: bundleId,
+                    appName: appName,
+                    trackTitle: trackTitle
+                ) {
+                    await MainActor.run { [weak self] in
+                        guard let self = self, self.currentItem?.title == trackTitle else { return }
+                        self.currentItem = MediaItem(
+                            id: mergedItem.id,
+                            title: mergedItem.title,
+                            artist: mergedItem.artist,
+                            album: mergedItem.album,
+                            artworkData: mergedItem.artworkData,
+                            duration: mergedItem.duration,
+                            currentTime: mergedItem.currentTime,
+                            isPlaying: mergedItem.isPlaying,
+                            application: mergedItem.application,
+                            bundleIdentifier: mergedItem.bundleIdentifier,
+                            lastUpdated: mergedItem.lastUpdated,
+                            service: detected
+                        )
+                    }
+                }
+            }
         }
     }
     

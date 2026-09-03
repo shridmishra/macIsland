@@ -13,6 +13,15 @@ public final class BrowserServiceDetector: @unchecked Sendable {
     
     public init() {}
     
+    /// Synchronously returns cached service if previously detected
+    public func cachedService(bundleId: String, trackTitle: String) -> MediaService? {
+        let cacheKey = "\(bundleId):\(trackTitle)" as NSString
+        if let cached = cache.object(forKey: cacheKey) as String? {
+            return MediaService(rawValue: cached)
+        }
+        return nil
+    }
+    
     /// Detects the media service for a browser track title.
     /// Runs asynchronously on a background thread so UI is never blocked.
     public func detectService(
@@ -29,8 +38,12 @@ public final class BrowserServiceDetector: @unchecked Sendable {
             return MediaService(rawValue: cached)
         }
         
-        let cleanTitle = trackTitle.replacingOccurrences(of: "\"", with: "\\\"")
-        let prefix = String(cleanTitle.prefix(12))
+        // Clean title: remove directional isolates (\u202A, \u202C), quotes, and extract clean search term
+        let stripped = trackTitle
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .filter { $0.isASCII || $0.isLetter || $0.isNumber || $0.isWhitespace }
+        let cleanWords = stripped.split(separator: " ").prefix(3).joined(separator: " ")
+        let prefix = cleanWords.isEmpty ? String(trackTitle.prefix(10)) : cleanWords
         
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -48,6 +61,9 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                                     end if
                                 end repeat
                             end repeat
+                            try
+                                return URL of current tab of window 1
+                            end try
                         end if
                     end tell
                     return ""
@@ -65,6 +81,9 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                                     end if
                                 end repeat
                             end repeat
+                            try
+                                return URL of active tab of window 1
+                            end try
                         end if
                     end tell
                     return ""
