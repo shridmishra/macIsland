@@ -34,12 +34,12 @@ public struct PlaybackProgressSlider: View {
     }
     
     public var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             // Elapsed time indicator with fixed-width tabular numbers
             Text(currentTimeString)
-                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .font(.system(size: 11.5, weight: .regular))
                 .monospacedDigit()
-                .foregroundColor(Color.white.opacity(0.68))
+                .foregroundColor(Color.white.opacity(0.55))
                 .lineLimit(1)
             
             // Interactive scrubber capsule with drag tracking
@@ -50,13 +50,13 @@ public struct PlaybackProgressSlider: View {
                 ZStack(alignment: .leading) {
                     // Track background
                     Capsule()
-                        .fill(Color.white.opacity(0.20))
-                        .frame(height: isDragging ? 5 : 3.5)
+                        .fill(Color.white.opacity(0.18))
+                        .frame(height: isDragging ? 5 : 4)
                     
                     // Filled active progress
                     Capsule()
-                        .fill(Color.white)
-                        .frame(width: currentWidth, height: isDragging ? 5 : 3.5)
+                        .fill(Color.white.opacity(0.85))
+                        .frame(width: currentWidth, height: isDragging ? 5 : 4)
                     
                     // Blooming scrub thumb indicator visible on drag
                     if isDragging {
@@ -96,9 +96,9 @@ public struct PlaybackProgressSlider: View {
             
             // Remaining time indicator with fixed-width tabular numbers
             Text(remainingTimeString)
-                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .font(.system(size: 11.5, weight: .regular))
                 .monospacedDigit()
-                .foregroundColor(Color.white.opacity(0.68))
+                .foregroundColor(Color.white.opacity(0.55))
                 .lineLimit(1)
         }
     }

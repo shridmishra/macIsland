@@ -3,11 +3,13 @@ import SwiftUI
 import Combine
 
 // MARK: - IslandWindowController
-// Manages the lifecycle, positioning, screen adaptation, and frame animations of IslandPanel.
-// Dynamically resizes and centers the window when:
-// 1. Media starts/stops playing (wings sprout from the notch)
-// 2. The user hovers/collapses the island (smooth spring expansion/collapse)
-// 3. Display geometry changes (external monitors connected/disconnected)
+// Manages the lifecycle, positioning, and screen adaptation of IslandPanel.
+//
+// Fluid Architecture:
+// The window maintains a stable transparent canvas pinned to the top of the display.
+// All expansion, collapse, and element morphing animations execute 100% natively
+// in SwiftUI with GPU-accelerated spring physics, eliminating WindowServer resize lag,
+// clipping, and visual frame cuts.
 @MainActor
 public final class IslandWindowController: NSObject, ObservableObject {
     public static let shared = IslandWindowController()
@@ -35,8 +37,10 @@ public final class IslandWindowController: NSObject, ObservableObject {
     private func setupPanel() {
         guard let screen = windowManager.targetScreen else { return }
         
-        let initialFrame = windowManager.windowFrame(for: windowManager.islandState, on: screen)
-        let newPanel = IslandPanel(contentRect: initialFrame)
+        // The panel is anchored at the top with a permanent transparent canvas
+        // sized to the maximum expanded bounds.
+        let targetFrame = windowManager.windowFrame(for: .expanded, on: screen)
+        let newPanel = IslandPanel(contentRect: targetFrame)
         
         // Host the SwiftUI IslandContainerView inside AppKit
         let rootView = IslandContainerView(
@@ -44,28 +48,14 @@ public final class IslandWindowController: NSObject, ObservableObject {
             mediaManager: mediaManager
         )
         let hostingView = IslandHostingView(rootView: rootView)
-        hostingView.frame = NSRect(origin: .zero, size: initialFrame.size)
+        hostingView.frame = NSRect(origin: .zero, size: targetFrame.size)
         hostingView.autoresizingMask = [.width, .height]
         
         newPanel.contentView = hostingView
-        newPanel.setFrame(initialFrame, display: true)
+        newPanel.setFrame(targetFrame, display: true)
         self.panel = newPanel
         
-        // 1. Listen to island state changes (collapsed <-> expanded)
-        windowManager.onStateChanged = { [weak self] newState in
-            self?.updateWindowFrame(for: newState)
-        }
-        
-        // 2. Listen to media changes (dynamically adapt collapsed wing width)
-        mediaManager.$currentItem
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self = self, self.windowManager.islandState == .collapsed else { return }
-                self.updateWindowFrame(for: .collapsed)
-            }
-            .store(in: &cancellables)
-        
-        // 3. Listen for screen resolution and display configuration changes
+        // Listen for screen resolution and display configuration changes
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .sink { [weak self] _ in
                 self?.recenterOnScreen()
@@ -73,21 +63,9 @@ public final class IslandWindowController: NSObject, ObservableObject {
             .store(in: &cancellables)
     }
     
-    private func updateWindowFrame(for state: IslandState) {
-        guard let panel = panel, let screen = windowManager.targetScreen else { return }
-        let targetFrame = windowManager.windowFrame(for: state, on: screen)
-        
-        // Use AppKit animation context for smooth window frame transition
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.32
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            panel.animator().setFrame(targetFrame, display: true)
-        }
-    }
-    
     private func recenterOnScreen() {
         guard let panel = panel, let screen = windowManager.targetScreen else { return }
-        let targetFrame = windowManager.windowFrame(for: windowManager.islandState, on: screen)
+        let targetFrame = windowManager.windowFrame(for: .expanded, on: screen)
         panel.setFrame(targetFrame, display: true)
     }
 }

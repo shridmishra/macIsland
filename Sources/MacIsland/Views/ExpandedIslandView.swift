@@ -7,12 +7,15 @@ import AppKit
 // - Header: Artwork + Track Title + Subtitle + Animated Waveform
 // - Scrubber: Elapsed Time + Progress Capsule + Negative Remaining Time
 // - Controls: Centered Previous / Frameless Play-Pause / Next + AirPods Route Icon
+// Participates in matchedGeometryEffect for seamless, continuous fluid expansion.
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
+    public var namespace: Namespace.ID
     @ObservedObject private var windowManager = WindowManager.shared
     
-    public init(mediaManager: MediaManager) {
+    public init(mediaManager: MediaManager, namespace: Namespace.ID) {
         self.mediaManager = mediaManager
+        self.namespace = namespace
     }
     
     public var body: some View {
@@ -21,6 +24,7 @@ public struct ExpandedIslandView: View {
                 // Top section: Service/Album Artwork + Track Details + Waveform Indicator
                 HStack(alignment: .center, spacing: 12) {
                     ArtworkImageView(item: item, size: 46, cornerRadius: 10)
+                        .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                     
                     VStack(alignment: .leading, spacing: 3) {
                         // Title
@@ -37,6 +41,7 @@ public struct ExpandedIslandView: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
+                    .transition(.opacity)
                     
                     Spacer(minLength: 0)
                     
@@ -45,6 +50,7 @@ public struct ExpandedIslandView: View {
                         isPlaying: mediaManager.playbackState.isPlaying,
                         color: Color(red: 0.95, green: 0.58, blue: 0.42)
                     )
+                    .matchedGeometryEffect(id: "islandWaveform", in: namespace)
                 }
                 
                 // Middle section: Scannable horizontal progress bar with timestamps
@@ -53,6 +59,7 @@ public struct ExpandedIslandView: View {
                     currentTimeString: mediaManager.formattedCurrentTime,
                     remainingTimeString: mediaManager.formattedRemainingTime
                 )
+                .transition(.opacity.combined(with: .offset(y: 4)))
                 
                 // Bottom section: Centered Playback controls + AirPods Route icon
                 MediaControlButtons(
@@ -61,6 +68,7 @@ public struct ExpandedIslandView: View {
                     onTogglePlayPause: { mediaManager.togglePlayPause() },
                     onNext: { mediaManager.nextTrack() }
                 )
+                .transition(.opacity.combined(with: .offset(y: 6)))
             } else {
                 // Empty state when no media is playing system-wide
                 VStack(spacing: 6) {

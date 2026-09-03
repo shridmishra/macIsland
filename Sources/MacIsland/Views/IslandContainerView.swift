@@ -2,16 +2,17 @@ import SwiftUI
 
 // MARK: - IslandContainerView
 // The root SwiftUI view of the Island.
-// Renders the pure pitch-black Dynamic Island container with outward top curves:
-// - Flat top touching the screen edge.
-// - Smooth outward curves (fillets/flares) at top-left and top-right flaring into the bezel.
-// - Continuous rounded corners on the bottom.
-// - Zero borders, zero shadows.
-// - Asymmetric origin-aware transitions unfurling directly from the top notch anchor.
+// Renders the pure pitch-black Dynamic Island container with outward top curves.
+// All size, position, shape, and element animations occur fluidly on the GPU:
+// - MatchedGeometryEffect for seamless element morphing (artwork and waveform)
+// - Synchronized spring physics between collapsed wings and the expanded card
+// - Zero window-server clipping or frame cuts
 @MainActor
 public struct IslandContainerView: View {
     @ObservedObject var windowManager: WindowManager
     @ObservedObject var mediaManager: MediaManager
+    
+    @Namespace private var islandNamespace
     
     @MainActor
     public init() {
@@ -27,40 +28,52 @@ public struct IslandContainerView: View {
     
     public var body: some View {
         let isExpanded = windowManager.islandState.isExpanded
+        let width = isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth
+        let height = isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
         let flareRadius: CGFloat = isExpanded ? 10 : 6
         let bottomRadius: CGFloat = isExpanded ? 22 : 10
         let islandShape = NotchedIslandShape(flareRadius: flareRadius, bottomRadius: bottomRadius)
         
-        ZStack {
-            if isExpanded {
-                ExpandedIslandView(mediaManager: mediaManager)
+        ZStack(alignment: .top) {
+            // Background black shape container
+            ZStack(alignment: .top) {
+                if isExpanded {
+                    ExpandedIslandView(
+                        mediaManager: mediaManager,
+                        namespace: islandNamespace
+                    )
                     .transition(
                         .asymmetric(
-                            insertion: .scale(scale: 0.94, anchor: .top).combined(with: .opacity),
-                            removal: .scale(scale: 0.96, anchor: .top).combined(with: .opacity)
+                            insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .top)),
+                            removal: .opacity
                         )
                     )
-            } else {
-                CollapsedIslandView(
-                    item: mediaManager.currentItem,
-                    isPlaying: mediaManager.playbackState.isPlaying
-                )
-                .transition(.opacity)
+                } else {
+                    CollapsedIslandView(
+                        item: mediaManager.currentItem,
+                        isPlaying: mediaManager.playbackState.isPlaying,
+                        namespace: islandNamespace
+                    )
+                    .transition(
+                        .asymmetric(
+                            insertion: .opacity,
+                            removal: .opacity
+                        )
+                    )
+                }
+            }
+            .frame(width: width, height: height)
+            .background(
+                islandShape
+                    .fill(Color.black)
+            )
+            .clipShape(islandShape)
+            .contentShape(islandShape)
+            .onHover { hovering in
+                windowManager.setHovered(hovering)
             }
         }
-        .frame(
-            width: isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth,
-            height: isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
-        )
-        // Pure solid pitch-black background with outward top curves and rounded bottom corners
-        .background(
-            islandShape
-                .fill(Color.black)
-        )
-        .clipShape(islandShape)
-        .onHover { hovering in
-            windowManager.setHovered(hovering)
-        }
-        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: windowManager.islandState)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.spring(response: 0.38, dampingFraction: 0.80), value: isExpanded)
     }
 }

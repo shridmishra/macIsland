@@ -5,14 +5,17 @@ import SwiftUI
 // On notched displays, compact wings flank the physical cutout at the exact 28pt height of the notch.
 // Shows the true streaming service logo icon (Prime Video, Netflix, YouTube, Spotify)
 // with pixel-perfect symmetrical padding and optical centering.
+// Participates in matchedGeometryEffect for seamless, continuous fluid expansion.
 public struct CollapsedIslandView: View {
     public let item: MediaItem?
     public let isPlaying: Bool
+    public var namespace: Namespace.ID
     @ObservedObject private var windowManager = WindowManager.shared
     
-    public init(item: MediaItem?, isPlaying: Bool) {
+    public init(item: MediaItem?, isPlaying: Bool, namespace: Namespace.ID) {
         self.item = item
         self.isPlaying = isPlaying
+        self.namespace = namespace
     }
     
     public var body: some View {
@@ -41,6 +44,7 @@ public struct CollapsedIslandView: View {
                 ZStack {
                     if let item = item {
                         ArtworkImageView(item: item, size: 16, cornerRadius: 4)
+                            .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                     } else {
                         Image(systemName: "music.note")
                             .font(.system(size: 9, weight: .semibold))
@@ -62,9 +66,9 @@ public struct CollapsedIslandView: View {
                     if isPlaying {
                         AudioWaveformIndicator(
                             isPlaying: true,
-                            color: item?.service.brandColor ?? Color.islandAccent,
-                            barCount: 4
+                            color: item?.service.brandColor ?? Color.islandAccent
                         )
+                        .matchedGeometryEffect(id: "islandWaveform", in: namespace)
                     } else if item != nil {
                         Image(systemName: "pause.fill")
                             .font(.system(size: 7.5, weight: .bold))
@@ -90,6 +94,7 @@ public struct CollapsedIslandView: View {
         HStack(spacing: 7) {
             if let item = item {
                 ArtworkImageView(item: item, size: 16, cornerRadius: 4)
+                    .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                 
                 Text(item.displayTitle)
                     .font(.system(size: 11, weight: .semibold))
@@ -100,9 +105,9 @@ public struct CollapsedIslandView: View {
                 
                 AudioWaveformIndicator(
                     isPlaying: isPlaying,
-                    color: item.service.brandColor,
-                    barCount: 4
+                    color: item.service.brandColor
                 )
+                .matchedGeometryEffect(id: "islandWaveform", in: namespace)
             } else {
                 Image(systemName: "music.note")
                     .font(.system(size: 10, weight: .semibold))
