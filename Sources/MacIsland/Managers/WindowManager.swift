@@ -5,7 +5,7 @@ import Combine
 // MARK: - WindowManager
 // Manages window geometry, screen metrics, notch adaptation, and hover transitions.
 // Pinned to the top edge of the display with pure pitch-black background (#000000)
-// so the island merges seamlessly with the physical camera cutout.
+// with pixel-perfect symmetrical padding and optical centering around the camera notch.
 @MainActor
 public final class WindowManager: ObservableObject {
     public static let shared = WindowManager()
@@ -30,15 +30,15 @@ public final class WindowManager: ObservableObject {
         targetScreen?.notchHeight ?? 0
     }
     
-    // MARK: - Cutout-Merged Dimensions
+    // MARK: - Cutout-Merged Precision Dimensions
     
     /// Dynamic collapsed width:
-    /// Seamlessly hugs the hardware notch with compact wings on both sides.
+    /// Left wing (44pt) + Notch (156pt) + Right wing (44pt) = 244pt
+    /// Ensures 11pt padding on both sides of the 16pt icon for perfect optical centering!
     public var collapsedWidth: CGFloat {
         let hasMedia = MediaManager.shared.currentItem != nil
         if let screen = targetScreen, screen.hasNotch {
-            // Left wing (38pt) + notchWidth (156pt) + Right wing (38pt) = 232pt
-            return hasMedia ? (screen.notchWidth + 76) : (screen.notchWidth + 24)
+            return hasMedia ? (screen.notchWidth + 88) : (screen.notchWidth + 28)
         }
         return hasMedia ? 180 : 130
     }
@@ -59,17 +59,17 @@ public final class WindowManager: ObservableObject {
     /// Encompasses the notch area at the top and provides balanced space for media controls below.
     public var expandedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 140
+            return screen.notchHeight + 148
         }
-        return 144
+        return 150
     }
     
     /// Top padding for expanded content so everything sits cleanly below the camera notch
     public var expandedTopPadding: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 6
+            return screen.notchHeight + 8
         }
-        return 12
+        return 14
     }
     
     private var collapseDebounceTimer: Timer?
@@ -126,7 +126,7 @@ public final class WindowManager: ObservableObject {
         let width = state.isExpanded ? expandedWidth : collapsedWidth
         let height = state.isExpanded ? expandedHeight : collapsedHeight
         
-        // Center horizontally
+        // Center horizontally on display
         let x = screen.frame.origin.x + (screen.frame.width - width) / 2.0
         
         // Pinned to the very top edge of the display

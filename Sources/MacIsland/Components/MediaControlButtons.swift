@@ -12,6 +12,7 @@ public struct MediaControlButtons: View {
     @State private var hoverPrevious = false
     @State private var hoverPlayPause = false
     @State private var hoverNext = false
+    @State private var hoverDevice = false
     
     public init(
         isPlaying: Bool,
@@ -26,44 +27,73 @@ public struct MediaControlButtons: View {
     }
     
     public var body: some View {
-        HStack(spacing: 24) {
-            // Previous button
-            Button(action: onPrevious) {
-                Image(systemName: "backward.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color.islandTextPrimary.opacity(hoverPrevious ? 1.0 : 0.70))
-                    .frame(width: 28, height: 28)
-                    .background(hoverPrevious ? Color.islandControlHover : Color.clear)
-                    .clipShape(Circle())
+        ZStack {
+            // Centered playback controls: Previous, Play/Pause, Next
+            HStack(spacing: 38) {
+                // Previous button
+                Button(action: onPrevious) {
+                    Image(systemName: "backward.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(Color.islandTextPrimary.opacity(hoverPrevious ? 1.0 : 0.85))
+                        .scaleEffect(hoverPrevious ? 1.08 : 1.0)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hoverPrevious = $0 }
+                .animation(.spring(response: 0.2, dampingFraction: 0.8), value: hoverPrevious)
+                
+                // Play / Pause prominent flat icon
+                Button(action: onTogglePlayPause) {
+                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundColor(Color.islandTextPrimary)
+                        .scaleEffect(hoverPlayPause ? 1.08 : 1.0)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hoverPlayPause = $0 }
+                .animation(.spring(response: 0.2, dampingFraction: 0.8), value: hoverPlayPause)
+                
+                // Next button
+                Button(action: onNext) {
+                    Image(systemName: "forward.fill")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(Color.islandTextPrimary.opacity(hoverNext ? 1.0 : 0.85))
+                        .scaleEffect(hoverNext ? 1.08 : 1.0)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hoverNext = $0 }
+                .animation(.spring(response: 0.2, dampingFraction: 0.8), value: hoverNext)
             }
-            .buttonStyle(.plain)
-            .onHover { hoverPrevious = $0 }
+            .frame(maxWidth: .infinity, alignment: .center)
             
-            // Play / Pause prominent button
-            Button(action: onTogglePlayPause) {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.black)
-                    .frame(width: 34, height: 34)
-                    .background(Color.white.opacity(0.95))
-                    .clipShape(Circle())
-                    .scaleEffect(hoverPlayPause ? 1.06 : 1.0)
+            // Right-aligned audio output destination icon (AirPods)
+            HStack {
+                Spacer()
+                
+                Button(action: {
+                    openSoundSettings()
+                }) {
+                    Image(systemName: "airpodspro")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(Color.islandScrubberMuted.opacity(hoverDevice ? 1.0 : 0.75))
+                        .scaleEffect(hoverDevice ? 1.06 : 1.0)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hoverDevice = $0 }
+                .help("Audio Output Settings")
             }
-            .buttonStyle(.plain)
-            .onHover { hoverPlayPause = $0 }
-            .animation(.spring(response: 0.25, dampingFraction: 0.75), value: hoverPlayPause)
-            
-            // Next button
-            Button(action: onNext) {
-                Image(systemName: "forward.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color.islandTextPrimary.opacity(hoverNext ? 1.0 : 0.70))
-                    .frame(width: 28, height: 28)
-                    .background(hoverNext ? Color.islandControlHover : Color.clear)
-                    .clipShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .onHover { hoverNext = $0 }
+        }
+        .frame(height: 34)
+    }
+    
+    private func openSoundSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        } else if let url = URL(string: "/System/Library/PreferencePanes/Sound.prefPane") {
+            NSWorkspace.shared.open(url)
         }
     }
 }

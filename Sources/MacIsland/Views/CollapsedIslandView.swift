@@ -3,7 +3,8 @@ import SwiftUI
 // MARK: - CollapsedIslandView
 // The minimal resting state of Mac Island.
 // On notched displays, compact wings flank the physical cutout at the exact 28pt height of the notch.
-// Shows the true streaming service icon (Prime Video, Netflix, YouTube, Spotify) instead of the browser logo.
+// Shows the true streaming service logo icon (Prime Video, Netflix, YouTube, Spotify)
+// with pixel-perfect symmetrical padding and optical centering.
 public struct CollapsedIslandView: View {
     public let item: MediaItem?
     public let isPlaying: Bool
@@ -29,44 +30,55 @@ public struct CollapsedIslandView: View {
         }
     }
     
-    // MARK: - Notched Display Wing Layout (Left Wing | Hardware Notch | Right Wing)
+    // MARK: - Notched Display Wing Layout (Symmetrical Optical Centering)
     private var notchWingLayout: some View {
         HStack(spacing: 0) {
-            // LEFT WING: Outside the notch on the left
+            // LEFT WING (44pt): [Flare 6pt] + [11pt gap] + [Icon 16pt] + [11pt gap] -> Notch
             HStack(spacing: 0) {
-                if let item = item {
-                    ArtworkImageView(item: item, size: 18, cornerRadius: 4.5)
-                } else {
-                    Image(systemName: "music.note")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(Color.islandTextSecondary)
+                Spacer()
+                    .frame(width: 6) // Accounts for the top-left outward flare curve
+                
+                ZStack {
+                    if let item = item {
+                        ArtworkImageView(item: item, size: 16, cornerRadius: 4)
+                    } else {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(Color.islandTextSecondary)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-            .frame(width: 38, height: windowManager.collapsedHeight)
+            .frame(width: 44, height: windowManager.collapsedHeight)
             
-            // CENTER: Physical camera cutout zone
-            // Empty space where the physical hardware notch sits
+            // CENTER: Physical camera cutout zone (100% empty space for hardware notch)
             Color.clear
                 .frame(width: windowManager.notchWidth)
             
-            // RIGHT WING: Outside the notch on the right
+            // RIGHT WING (44pt): Notch -> [11pt gap] + [Equalizer 16pt] + [11pt gap] + [Flare 6pt]
             HStack(spacing: 0) {
-                if isPlaying {
-                    AudioWaveformIndicator(
-                        isPlaying: true,
-                        color: item?.service.brandColor ?? Color.islandAccent
-                    )
-                } else if item != nil {
-                    Image(systemName: "pause.fill")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(Color.islandTextTertiary)
-                } else {
-                    Circle()
-                        .fill(Color.islandTextTertiary)
-                        .frame(width: 4.5, height: 4.5)
+                ZStack {
+                    if isPlaying {
+                        AudioWaveformIndicator(
+                            isPlaying: true,
+                            color: item?.service.brandColor ?? Color.islandAccent
+                        )
+                    } else if item != nil {
+                        Image(systemName: "pause.fill")
+                            .font(.system(size: 7.5, weight: .bold))
+                            .foregroundColor(Color.islandTextTertiary)
+                    } else {
+                        Circle()
+                            .fill(Color.islandTextTertiary)
+                            .frame(width: 4, height: 4)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
+                
+                Spacer()
+                    .frame(width: 6) // Accounts for the top-right outward flare curve
             }
-            .frame(width: 38, height: windowManager.collapsedHeight)
+            .frame(width: 44, height: windowManager.collapsedHeight)
         }
     }
     
@@ -74,7 +86,7 @@ public struct CollapsedIslandView: View {
     private var standardCenteredLayout: some View {
         HStack(spacing: 7) {
             if let item = item {
-                ArtworkImageView(item: item, size: 18, cornerRadius: 4.5)
+                ArtworkImageView(item: item, size: 16, cornerRadius: 4)
                 
                 Text(item.displayTitle)
                     .font(.system(size: 11, weight: .semibold))

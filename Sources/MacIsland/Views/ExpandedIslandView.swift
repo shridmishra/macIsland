@@ -14,68 +14,46 @@ public struct ExpandedIslandView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             if let item = mediaManager.currentItem {
-                // Top section: Service/Album Artwork + Clean Track details + Streaming Service Badge + Collapse
-                HStack(alignment: .center, spacing: 12) {
-                    ArtworkImageView(item: item, size: 46, cornerRadius: 10)
+                // Top row: Album Artwork + Track Details (Title & Artist) + Animated Waveform Equalizer
+                HStack(alignment: .center, spacing: 14) {
+                    ArtworkImageView(item: item, size: 52, cornerRadius: 13)
                     
-                    VStack(alignment: .leading, spacing: 2.5) {
-                        // Title (cleaned of "Prime Video: " or " - YouTube")
+                    VStack(alignment: .leading, spacing: 3) {
+                        // Track Title
                         Text(item.displayTitle)
-                            .font(.system(size: 13.5, weight: .semibold))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundColor(Color.islandTextPrimary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
-                        // Artist or Media Info
-                        Text(item.artist.isEmpty ? "Now Playing" : item.artist)
-                            .font(.system(size: 11.5, weight: .regular))
-                            .foregroundColor(Color.islandTextSecondary)
+                        // Artist name
+                        Text(item.artist.isEmpty ? item.effectiveAppName : item.artist)
+                            .font(.system(size: 13.5, weight: .regular))
+                            .foregroundColor(Color.islandScrubberMuted)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                        
-                        // Streaming Service Pill Badge (e.g. "Prime Video" instead of "Brave Browser")
-                        HStack(spacing: 4.5) {
-                            Circle()
-                                .fill(item.isPlaying ? item.service.brandColor : Color.islandTextTertiary)
-                                .frame(width: 5, height: 5)
-                            
-                            Text(item.effectiveAppName)
-                                .font(.system(size: 9.5, weight: .semibold))
-                                .foregroundColor(Color.islandTextSecondary)
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.islandBadgeBackground))
                     }
                     
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 8)
                     
-                    // Manual collapse button
-                    Button(action: {
-                        WindowManager.shared.collapse()
-                    }) {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 8.5, weight: .bold))
-                            .foregroundColor(Color.islandTextSecondary)
-                            .frame(width: 20, height: 20)
-                            .background(Color.islandControlHover)
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Collapse Island")
+                    // 5-bar animated waveform equalizer matching reference design
+                    AudioWaveformIndicator(
+                        isPlaying: mediaManager.playbackState.isPlaying,
+                        color: Color.islandWaveformPeach,
+                        barCount: 5
+                    )
                 }
                 
-                // Middle section: Progress bar
+                // Middle row: Single-row Scrubber with elapsed & negative remaining time
                 PlaybackProgressSlider(
                     progress: mediaManager.interpolatedProgress,
                     currentTimeString: mediaManager.formattedCurrentTime,
-                    durationString: mediaManager.formattedDuration
+                    remainingTimeString: mediaManager.formattedRemainingTime
                 )
-                .padding(.horizontal, 1)
                 
-                // Bottom section: Centered Playback controls
+                // Bottom row: Centered flat white controls (Previous, Play/Pause, Next) + AirPods icon
                 MediaControlButtons(
                     isPlaying: mediaManager.playbackState.isPlaying,
                     onPrevious: { mediaManager.previousTrack() },
@@ -84,41 +62,26 @@ public struct ExpandedIslandView: View {
                 )
             } else {
                 // Empty state when no media is playing system-wide
-                ZStack(alignment: .topTrailing) {
-                    VStack(spacing: 6) {
-                        Image(systemName: "music.note.list")
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Color.islandTextTertiary)
-                        
-                        Text("No Media Playing")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color.islandTextSecondary)
-                        
-                        Text("Play audio in Apple Music, Spotify, or your browser")
-                            .font(.system(size: 10, weight: .regular))
-                            .foregroundColor(Color.islandTextTertiary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical, 4)
+                VStack(spacing: 8) {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundColor(Color.islandTextTertiary)
                     
-                    Button(action: {
-                        WindowManager.shared.collapse()
-                    }) {
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 8.5, weight: .bold))
-                            .foregroundColor(Color.islandTextSecondary)
-                            .frame(width: 20, height: 20)
-                            .background(Color.islandControlHover)
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Collapse Island")
+                    Text("No Media Playing")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.islandTextSecondary)
+                    
+                    Text("Play audio in Apple Music, Spotify, or your browser")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(Color.islandTextTertiary)
+                        .multilineTextAlignment(.center)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.vertical, 8)
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 16)
         .padding(.top, windowManager.expandedTopPadding)
-        .padding(.bottom, 12)
+        .padding(.bottom, 14)
     }
 }

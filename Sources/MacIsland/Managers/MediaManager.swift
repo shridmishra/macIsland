@@ -16,6 +16,7 @@ public final class MediaManager: ObservableObject {
     @Published public private(set) var interpolatedProgress: Double = 0.0
     @Published public private(set) var formattedCurrentTime: String = "0:00"
     @Published public private(set) var formattedDuration: String = "0:00"
+    @Published public private(set) var formattedRemainingTime: String = "-0:00"
     
     private let provider: NowPlayingProvider
     private var progressTicker: Timer?
@@ -44,6 +45,7 @@ public final class MediaManager: ObservableObject {
             self.interpolatedProgress = item.progressFraction()
             self.formattedCurrentTime = MediaItem.formatTime(item.currentProgress())
             self.formattedDuration = MediaItem.formatTime(item.duration)
+            self.formattedRemainingTime = Self.formatRemainingTime(current: item.currentProgress(), total: item.duration)
             
             // Asynchronously resolve specific media streaming service if playing inside a browser
             if item.isBrowserMedia && item.service == .generic {
@@ -83,7 +85,14 @@ public final class MediaManager: ObservableObject {
             self.interpolatedProgress = 0.0
             self.formattedCurrentTime = "0:00"
             self.formattedDuration = "0:00"
+            self.formattedRemainingTime = "-0:00"
         }
+    }
+    
+    private static func formatRemainingTime(current: TimeInterval, total: TimeInterval) -> String {
+        guard total > 0 else { return "-0:00" }
+        let remaining = max(0, total - current)
+        return "-" + MediaItem.formatTime(remaining)
     }
     
     private func startProgressTicker() {
@@ -94,6 +103,7 @@ public final class MediaManager: ObservableObject {
                 let progress = item.currentProgress()
                 self.interpolatedProgress = item.progressFraction()
                 self.formattedCurrentTime = MediaItem.formatTime(progress)
+                self.formattedRemainingTime = Self.formatRemainingTime(current: progress, total: item.duration)
             }
         }
         RunLoop.main.add(ticker, forMode: .common)

@@ -38,6 +38,15 @@ extension Color {
     
     /// App source pill badge border
     public static let islandBadgeBorder = Color.white.opacity(0.16)
+    
+    /// iOS Now Playing warm waveform terracotta/peach tone
+    public static let islandWaveformPeach = Color(nsColor: NSColor(red: 0.85, green: 0.54, blue: 0.44, alpha: 1.0))
+    
+    /// iOS Now Playing scrubber secondary muted text and device icons
+    public static let islandScrubberMuted = Color.white.opacity(0.55)
+    
+    /// iOS Now Playing scrubber active progress fill
+    public static let islandScrubberFill = Color.white.opacity(0.80)
 }
 
 extension ShapeStyle where Self == LinearGradient {
