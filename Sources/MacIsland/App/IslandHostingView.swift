@@ -42,7 +42,10 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
     
     // MARK: - Precise Pass-Through Hit-Testing
     public override func hitTest(_ point: NSPoint) -> NSView? {
-        if isPointInIsland(point) {
+        // AppKit supplies `point` in the coordinate system of the view's superview (the window).
+        // Convert to local view coordinates before checking against island geometry.
+        let localPoint = convert(point, from: nil)
+        if isPointInIsland(localPoint) {
             return super.hitTest(point)
         }
         // Mouse event is outside the active island shape — pass through to underlying windows!
@@ -89,11 +92,14 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
         let w = isExpanded ? WindowManager.shared.expandedWidth : WindowManager.shared.collapsedWidth
         let h = isExpanded ? WindowManager.shared.expandedHeight : WindowManager.shared.collapsedHeight
         
-        // In AppKit coordinate system, (0, 0) is bottom-left.
-        // The island is anchored to the top of the hosting view bounds:
+        // NSHostingView is flipped (isFlipped == true, (0, 0) is top-left).
+        // The island is anchored directly to the top edge touching the screen bezel / menu bar.
+        // Therefore, y starts at 0 and spans downward to height `h`.
+        // When collapsed, h is the menu bar / notch height (28pt).
+        // Only when expanded does h extend downward into the screen (152pt).
         let x = (bounds.width - w) / 2.0
-        let y = bounds.height - h
-        let islandRect = NSRect(x: x, y: y, width: w, height: h)
+        let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
+        let islandRect = NSRect(x: x, y: y, width: w, height: h + 2)
         
         return islandRect.contains(point)
     }

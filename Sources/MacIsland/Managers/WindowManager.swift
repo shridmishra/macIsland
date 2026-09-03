@@ -36,11 +36,10 @@ public final class WindowManager: ObservableObject {
     /// Dynamic collapsed width:
     /// Left wing (44pt) + Notch (156pt) + Right wing (44pt) = 244pt
     public var collapsedWidth: CGFloat {
-        let hasMedia = MediaManager.shared.currentItem != nil
         if let screen = targetScreen, screen.hasNotch {
-            return hasMedia ? (screen.notchWidth + 88) : (screen.notchWidth + 28)
+            return screen.notchWidth + 88
         }
-        return hasMedia ? 180 : 130
+        return 180
     }
     
     /// Height of the collapsed pill:

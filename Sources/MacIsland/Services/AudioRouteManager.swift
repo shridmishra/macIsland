@@ -5,7 +5,7 @@ import Combine
 // MARK: - AudioRouteManager
 // Detects the active macOS audio output device using native CoreAudio APIs.
 // Intelligently maps active output device to its authentic SF Symbol:
-// - MacBook Air / Pro Speakers -> "laptopcomputer" (or "macbook")
+// - MacBook Air / Pro Speakers -> "macbook"
 // - Desktop Mac (iMac, Mac mini, Studio, Pro) -> "desktopcomputer"
 // - AirPods / AirPods Pro / AirPods Max -> "airpods" / "airpodspro" / "airpodsmax"
 // - Bluetooth headphones / Earbuds -> "headphones"
@@ -16,7 +16,7 @@ import Combine
 public final class AudioRouteManager: ObservableObject {
     public static let shared = AudioRouteManager()
     
-    @Published public private(set) var activeRouteIcon: String? = "laptopcomputer"
+    @Published public private(set) var activeRouteIcon: String? = "macbook"
     @Published public private(set) var deviceName: String = "Mac"
     
     private var timer: Timer?
@@ -49,7 +49,7 @@ public final class AudioRouteManager: ObservableObject {
             &deviceID
         )
         guard status == noErr else {
-            activeRouteIcon = "laptopcomputer"
+            activeRouteIcon = "macbook"
             return
         }
         
@@ -108,7 +108,7 @@ public final class AudioRouteManager: ObservableObject {
             activeRouteIcon = "desktopcomputer"
         } else {
             // Built-in MacBook Speakers (MacBook Air / MacBook Pro)
-            activeRouteIcon = "laptopcomputer"
+            activeRouteIcon = "macbook"
         }
     }
     
