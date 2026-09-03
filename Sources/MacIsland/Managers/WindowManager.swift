@@ -4,9 +4,10 @@ import Combine
 
 // MARK: - WindowManager
 // Manages window geometry, screen metrics, notch adaptation, and hover transitions.
-// Guarantees that on notched MacBooks, NO content is ever placed behind the physical camera cutout:
-// - In collapsed mode: Information is placed strictly in the side "wings" (left & right of the cutout).
-// - In expanded mode: All interactive UI sits completely below the cutout.
+// Precision-tuned to match the physical hardware cutout:
+// - Height exactly matches the hardware notch height (28pt on MacBook Pro/Air).
+// - Collapsed width is compact and hugs the notch without invading the menu bar.
+// - Authentic macOS Liquid Frosted Glass styling.
 @MainActor
 public final class WindowManager: ObservableObject {
     public static let shared = WindowManager()
@@ -31,46 +32,46 @@ public final class WindowManager: ObservableObject {
         targetScreen?.notchHeight ?? 0
     }
     
-    // MARK: - Notch-Safe Dimensions
+    // MARK: - Precision Hardware-Matched Dimensions
     
     /// Dynamic collapsed width:
-    /// On notched displays, spans across the notch so content sits in the side wings.
+    /// Hugs the hardware notch closely with compact, subtle wings.
     public var collapsedWidth: CGFloat {
         let hasMedia = MediaManager.shared.currentItem != nil
         if let screen = targetScreen, screen.hasNotch {
-            // Symmetrical wings on both sides of the hardware cutout:
-            // ~120pt left wing + notchWidth + ~120pt right wing
-            return hasMedia ? (screen.notchWidth + 240) : (screen.notchWidth + 60)
+            // Left wing (~36pt mini artwork) + notchWidth + Right wing (~34pt mini waveform)
+            // = notchWidth + 72pt (~228pt total, perfectly proportioned to the 156pt notch)
+            return hasMedia ? (screen.notchWidth + 72) : (screen.notchWidth + 24)
         }
-        return hasMedia ? 240 : 180
+        return hasMedia ? 180 : 130
     }
     
-    /// Height of the collapsed pill (matches or slightly exceeds notch height)
+    /// Height of the collapsed pill:
+    /// Precision-matched to the exact hardware cutout height (28pt) so it never overflows the menu bar.
     public var collapsedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return max(screen.notchHeight + 4, 34)
+            return screen.notchHeight
         }
-        return 34
+        return 28.0
     }
     
-    /// Width for the expanded card
-    public let expandedWidth: CGFloat = 420
+    /// Compact expanded width for sleek floating card
+    public let expandedWidth: CGFloat = 368
     
-    /// Height for the expanded card:
-    /// On notched displays, extends downward to provide ample room below the hardware notch.
+    /// Compact expanded height
     public var expandedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 156
+            return screen.notchHeight + 128
         }
-        return 152
+        return 136
     }
     
     /// Top padding for expanded content so everything is 100% outside and below the cutout
     public var expandedTopPadding: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 6
+            return screen.notchHeight + 4
         }
-        return 14
+        return 12
     }
     
     private var collapseDebounceTimer: Timer?

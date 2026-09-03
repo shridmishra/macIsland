@@ -2,8 +2,8 @@ import SwiftUI
 import AppKit
 
 // MARK: - ExpandedIslandView
-// The rich, interactive floating card revealed when the user hovers over Mac Island.
-// On notched displays, all content starts below the notch cutout so nothing is obscured.
+// The rich, interactive floating card revealed when hovering over Mac Island.
+// Precision-padded so all content sits cleanly below the hardware notch cutout.
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
     @ObservedObject private var windowManager = WindowManager.shared
@@ -13,40 +13,40 @@ public struct ExpandedIslandView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 11) {
+        VStack(spacing: 10) {
             if let item = mediaManager.currentItem {
                 // Top section: Artwork + Track details + App Badge + Collapse button
-                // Positioned safely below the hardware notch
-                HStack(alignment: .top, spacing: 14) {
-                    ArtworkImageView(artworkData: item.artworkData, size: 56, cornerRadius: 12)
+                // Positioned safely below the hardware notch cutout
+                HStack(alignment: .top, spacing: 12) {
+                    ArtworkImageView(artworkData: item.artworkData, size: 48, cornerRadius: 10)
                     
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 3) {
                         // Title
                         Text(item.title)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(Color.islandTextPrimary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
                         // Artist or Media Info
                         Text(item.artist.isEmpty ? "Now Playing" : item.artist)
-                            .font(.system(size: 12, weight: .regular))
+                            .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.islandTextSecondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
                         // Active Application Pill Badge
-                        HStack(spacing: 5) {
+                        HStack(spacing: 4) {
                             Circle()
                                 .fill(item.isPlaying ? Color.islandAccent : Color.islandTextTertiary)
-                                .frame(width: 5.5, height: 5.5)
+                                .frame(width: 5, height: 5)
                             
                             Text(item.application)
-                                .font(.system(size: 10, weight: .medium))
+                                .font(.system(size: 9.5, weight: .medium))
                                 .foregroundColor(Color.islandTextSecondary)
                         }
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2.5)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
                         .background(Capsule().fill(Color.islandBadgeBackground))
                         .overlay(Capsule().stroke(Color.islandBadgeBorder, lineWidth: 0.5))
                         .padding(.top, 1)
@@ -59,9 +59,9 @@ public struct ExpandedIslandView: View {
                         WindowManager.shared.collapse()
                     }) {
                         Image(systemName: "chevron.up")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 8.5, weight: .bold))
                             .foregroundColor(Color.islandTextSecondary)
-                            .frame(width: 22, height: 22)
+                            .frame(width: 20, height: 20)
                             .background(Color.islandControlHover)
                             .clipShape(Circle())
                     }
@@ -87,30 +87,30 @@ public struct ExpandedIslandView: View {
             } else {
                 // Empty state when no media is playing system-wide
                 ZStack(alignment: .topTrailing) {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 6) {
                         Image(systemName: "music.note.list")
-                            .font(.system(size: 22, weight: .medium))
+                            .font(.system(size: 20, weight: .medium))
                             .foregroundColor(Color.islandTextTertiary)
                         
                         Text("No Media Playing")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(Color.islandTextSecondary)
                         
                         Text("Play audio in Apple Music, Spotify, or your browser")
-                            .font(.system(size: 11, weight: .regular))
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundColor(Color.islandTextTertiary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
                     
                     Button(action: {
                         WindowManager.shared.collapse()
                     }) {
                         Image(systemName: "chevron.up")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 8.5, weight: .bold))
                             .foregroundColor(Color.islandTextSecondary)
-                            .frame(width: 22, height: 22)
+                            .frame(width: 20, height: 20)
                             .background(Color.islandControlHover)
                             .clipShape(Circle())
                     }
@@ -119,8 +119,8 @@ public struct ExpandedIslandView: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.top, windowManager.expandedTopPadding)
-        .padding(.bottom, 14)
+        .padding(.bottom, 12)
     }
 }
