@@ -3,11 +3,12 @@ import AppKit
 
 // MARK: - ExpandedIslandView
 // The rich, interactive floating card revealed when hovering over Mac Island.
-// Compact, sleek, proportional design fitting snugly below the MacBook notch:
-// - Header: Artwork (38x38) + Track Title + Subtitle + Animated Waveform Pulse
-// - Scrubber: Elapsed Time + Progress Capsule + Negative Remaining Time
-// - Controls: Centered Previous / Frameless Play-Pause / Next + Dynamic Audio Route Icon
-// Participates in matchedGeometryEffect for seamless, continuous fluid expansion.
+// Refined Apple Dynamic Island aesthetic:
+// - Generous 20pt padding around all content for comfortable, premium breathing room
+// - Sleek, proportional title typography (12.5pt semibold) preventing loud/oversized text
+// - 34x34 brand artwork with continuous rounded corners
+// - 4-bar delicate hairline animated equalizer waveform
+// - Scannable scrubber and centered playback controls
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
     public var namespace: Namespace.ID
@@ -20,34 +21,35 @@ public struct ExpandedIslandView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 9) {
+        VStack(spacing: 10) {
             if let item = mediaManager.currentItem {
                 let isPlaying = mediaManager.playbackState.isPlaying
                 let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
                 
                 // Top section: Service/Album Artwork + Track Details + Waveform Indicator
-                HStack(alignment: .center, spacing: 10) {
-                    ArtworkImageView(item: item, size: 38, cornerRadius: 8.5)
+                HStack(alignment: .center, spacing: 11) {
+                    ArtworkImageView(item: item, size: 34, cornerRadius: 7.5)
                         .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                     
                     VStack(alignment: .leading, spacing: 2) {
-                        // Title
+                        // Title: refined size with comfortable optical tracking
                         Text(item.displayTitle)
-                            .font(.system(size: 13.5, weight: .bold))
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .tracking(-0.2)
                             .foregroundColor(.white)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
-                        // Subtitle: Service name (Prime Video, YouTube, Netflix, Spotify) or Artist
+                        // Subtitle: Service name (YouTube, Prime Video, Netflix, Spotify) or Artist
                         Text(item.effectiveAppName)
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(Color.white.opacity(0.65))
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundColor(Color.white.opacity(0.60))
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
                     .transition(.opacity)
                     
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 4)
                     
                     // Waveform Audio Equalizer on the top-right matching the brand icon color
                     AudioWaveformIndicator(
@@ -94,8 +96,8 @@ public struct ExpandedIslandView: View {
                 .padding(.vertical, 6)
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 20) // Generous 20pt horizontal padding around content
         .padding(.top, windowManager.expandedTopPadding)
-        .padding(.bottom, 9)
+        .padding(.bottom, 13) // Comfortable bottom breathing room
     }
 }
