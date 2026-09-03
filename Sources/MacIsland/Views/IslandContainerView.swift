@@ -2,8 +2,7 @@ import SwiftUI
 
 // MARK: - IslandContainerView
 // The root SwiftUI view of the Island.
-// Renders authentic transparent liquid glass surfaces and manages
-// the spring morphing between collapsed and expanded states.
+// Backed by NSVisualEffectView for authentic macOS WindowServer GPU glass blur.
 @MainActor
 public struct IslandContainerView: View {
     @ObservedObject var windowManager: WindowManager
@@ -27,7 +26,7 @@ public struct IslandContainerView: View {
         ZStack {
             if isExpanded {
                 ExpandedIslandView(mediaManager: mediaManager)
-                    .transparentGlass(cornerRadius: 18)
+                    .transparentGlass(cornerRadius: 18, material: .hudWindow)
                     .shadow(color: Color.black.opacity(0.28), radius: 18, x: 0, y: 8)
                     .shadow(color: Color.black.opacity(0.15), radius: 5, x: 0, y: 2)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))

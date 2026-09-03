@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - CollapsedIslandView
 // The minimal resting state of Mac Island.
 // On notched displays, renders two independent transparent glass wings flanking the cutout.
-// The center space is 100% clear so nothing is drawn behind the physical camera notch.
+// Backed by NSVisualEffectView for true hardware GPU behind-window glass blur.
 public struct CollapsedIslandView: View {
     public let item: MediaItem?
     public let isPlaying: Bool
@@ -44,8 +44,8 @@ public struct CollapsedIslandView: View {
                 }
             }
             .frame(width: 36, height: windowManager.collapsedHeight)
-            .transparentGlass(cornerRadius: 10)
-            .shadow(color: Color.black.opacity(0.20), radius: 4, x: 0, y: 1.5)
+            .transparentGlass(cornerRadius: 10, material: .hudWindow)
+            .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 1.5)
             
             // CENTER: Physical camera cutout gap (100% transparent, ZERO pixels drawn)
             Color.clear
@@ -66,8 +66,8 @@ public struct CollapsedIslandView: View {
                 }
             }
             .frame(width: 36, height: windowManager.collapsedHeight)
-            .transparentGlass(cornerRadius: 10)
-            .shadow(color: Color.black.opacity(0.20), radius: 4, x: 0, y: 1.5)
+            .transparentGlass(cornerRadius: 10, material: .hudWindow)
+            .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 1.5)
         }
     }
     
@@ -97,7 +97,7 @@ public struct CollapsedIslandView: View {
         }
         .padding(.horizontal, 10)
         .frame(height: windowManager.collapsedHeight)
-        .transparentGlass(cornerRadius: 12)
-        .shadow(color: Color.black.opacity(0.20), radius: 4, x: 0, y: 1.5)
+        .transparentGlass(cornerRadius: 12, material: .hudWindow)
+        .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 1.5)
     }
 }
