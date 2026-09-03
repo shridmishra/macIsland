@@ -16,34 +16,32 @@ public struct CollapsedIslandView: View {
     public var body: some View {
         HStack(spacing: 8) {
             if let item = item {
-                // Mini album artwork or fallback glyph
-                ArtworkImageView(artworkData: item.artworkData, size: 20, cornerRadius: 5)
+                // Mini album artwork
+                ArtworkImageView(artworkData: item.artworkData, size: 22, cornerRadius: 6)
                 
                 // Track title (compact)
                 Text(item.title)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(Color.islandTextPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .frame(maxWidth: 110, alignment: .leading)
-                
-                Spacer(minLength: 0)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 
                 // Animated audio visualizer bars
                 AudioWaveformIndicator(isPlaying: isPlaying)
             } else {
                 // Idle state: subtle indicator pill
-                Circle()
-                    .fill(Color.islandTextTertiary)
-                    .frame(width: 6, height: 6)
+                Image(systemName: "music.note")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Color.islandTextSecondary)
                 
                 Text("Mac Island")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(Color.islandTextSecondary)
             }
         }
-        .padding(.horizontal, 10)
-        .frame(height: 32)
+        .padding(.horizontal, 12)
+        .frame(height: 34)
         .contentShape(Rectangle())
         .onTapGesture {
             WindowManager.shared.expand()

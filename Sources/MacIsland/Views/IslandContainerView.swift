@@ -23,12 +23,12 @@ public struct IslandContainerView: View {
     
     public var body: some View {
         let isExpanded = windowManager.islandState.isExpanded
-        let cornerRadius: CGFloat = isExpanded ? 20 : 17
+        let cornerRadius: CGFloat = isExpanded ? 24 : 17
         
         ZStack {
             if isExpanded {
                 ExpandedIslandView(mediaManager: mediaManager)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
             } else {
                 CollapsedIslandView(
                     item: mediaManager.currentItem,
@@ -56,9 +56,11 @@ public struct IslandContainerView: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(Color.islandBorder, lineWidth: 0.75)
+                .stroke(LinearGradient.islandRimBorder, lineWidth: 1.0)
         )
-        .shadow(color: Color.black.opacity(0.40), radius: isExpanded ? 16 : 8, x: 0, y: isExpanded ? 6 : 2)
+        // Apple-grade dual-layer depth shadows
+        .shadow(color: Color.black.opacity(isExpanded ? 0.38 : 0.22), radius: isExpanded ? 24 : 10, x: 0, y: isExpanded ? 10 : 3)
+        .shadow(color: Color.black.opacity(isExpanded ? 0.22 : 0.12), radius: isExpanded ? 6 : 3, x: 0, y: isExpanded ? 3 : 1)
         .onHover { hovering in
             windowManager.setHovered(hovering)
         }

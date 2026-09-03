@@ -13,14 +13,18 @@ public final class WindowManager: ObservableObject {
     @Published public private(set) var islandState: IslandState = .collapsed
     @Published public private(set) var isHovered: Bool = false
     
-    // Dynamic dimensions
+    // MARK: - Dimensions tuned for Apple Dynamic Island aesthetics
+    
+    /// Dynamic collapsed width adapting to whether media is playing and screen notch geometry
     public var collapsedWidth: CGFloat {
+        let hasMedia = MediaManager.shared.currentItem != nil
         if let screen = targetScreen, screen.hasNotch {
-            return max(screen.notchWidth + 28, 220)
+            return hasMedia ? max(screen.notchWidth + 64, 256) : max(screen.notchWidth + 24, 210)
         }
-        return 200
+        return hasMedia ? 240 : 180
     }
     
+    /// Height of the collapsed pill (matches MacBook notch height)
     public var collapsedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
             return max(screen.notchHeight + 2, 34)
@@ -28,8 +32,11 @@ public final class WindowManager: ObservableObject {
         return 34
     }
     
-    public let expandedWidth: CGFloat = 380
-    public let expandedHeight: CGFloat = 142
+    /// Generous width for expanded card so titles and controls breathe comfortably
+    public let expandedWidth: CGFloat = 416
+    
+    /// Height for expanded card giving balanced optical rhythm between artwork, slider & controls
+    public let expandedHeight: CGFloat = 152
     
     /// Target screen where Mac Island is currently docked
     public var targetScreen: NSScreen? {
@@ -45,7 +52,6 @@ public final class WindowManager: ObservableObject {
         isHovered = hovered
         
         if hovered {
-            // Cancel pending collapse timer
             collapseDebounceTimer?.invalidate()
             collapseDebounceTimer = nil
             
@@ -53,7 +59,7 @@ public final class WindowManager: ObservableObject {
                 expand()
             }
         } else {
-            // Start debounce timer to collapse after 450ms
+            // 450ms debounce timer prevents accidental collapse when moving cursor
             collapseDebounceTimer?.invalidate()
             collapseDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.45, repeats: false) { [weak self] _ in
                 Task { @MainActor [weak self] in
@@ -92,8 +98,7 @@ public final class WindowManager: ObservableObject {
         // Center horizontally
         let x = screen.frame.origin.x + (screen.frame.width - width) / 2.0
         
-        // Pin to the very top edge of the screen
-        // AppKit Y starts at bottom (0), so top of screen is origin.y + height
+        // Anchor to the top edge of the display
         let y = screen.frame.origin.y + screen.frame.height - height
         
         return NSRect(x: x, y: y, width: width, height: height)

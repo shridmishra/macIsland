@@ -12,38 +12,42 @@ public struct ExpandedIslandView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 11) {
             if let item = mediaManager.currentItem {
-                // Top section: Artwork + Track details + App Badge
-                HStack(alignment: .top, spacing: 12) {
-                    ArtworkImageView(artworkData: item.artworkData, size: 54, cornerRadius: 8)
+                // Top section: Artwork + Track details + App Badge + Collapse
+                HStack(alignment: .top, spacing: 14) {
+                    ArtworkImageView(artworkData: item.artworkData, size: 56, cornerRadius: 12)
                     
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 4) {
                         // Title
                         Text(item.title)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundColor(Color.islandTextPrimary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
-                        // Artist
+                        // Artist or Media Info
                         Text(item.artist.isEmpty ? "Now Playing" : item.artist)
-                            .font(.system(size: 11, weight: .regular))
+                            .font(.system(size: 12, weight: .regular))
                             .foregroundColor(Color.islandTextSecondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
-                        // Active Application Badge
-                        HStack(spacing: 4) {
+                        // Active Application Pill Badge
+                        HStack(spacing: 5) {
                             Circle()
                                 .fill(item.isPlaying ? Color.islandAccent : Color.islandTextTertiary)
-                                .frame(width: 5, height: 5)
+                                .frame(width: 5.5, height: 5.5)
                             
                             Text(item.application)
                                 .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(Color.islandTextTertiary)
+                                .foregroundColor(Color.islandTextSecondary)
                         }
-                        .padding(.top, 2)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2.5)
+                        .background(Capsule().fill(Color.islandBadgeBackground))
+                        .overlay(Capsule().stroke(Color.islandBadgeBorder, lineWidth: 0.5))
+                        .padding(.top, 1)
                     }
                     
                     Spacer(minLength: 0)
@@ -55,7 +59,7 @@ public struct ExpandedIslandView: View {
                         Image(systemName: "chevron.up")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(Color.islandTextSecondary)
-                            .frame(width: 20, height: 20)
+                            .frame(width: 22, height: 22)
                             .background(Color.islandControlHover)
                             .clipShape(Circle())
                     }
@@ -69,8 +73,9 @@ public struct ExpandedIslandView: View {
                     currentTimeString: mediaManager.formattedCurrentTime,
                     durationString: mediaManager.formattedDuration
                 )
+                .padding(.horizontal, 1)
                 
-                // Bottom section: Playback controls
+                // Bottom section: Centered Playback controls
                 MediaControlButtons(
                     isPlaying: mediaManager.playbackState.isPlaying,
                     onPrevious: { mediaManager.previousTrack() },
@@ -80,22 +85,22 @@ public struct ExpandedIslandView: View {
             } else {
                 // Empty state when no media is playing system-wide
                 ZStack(alignment: .topTrailing) {
-                    VStack(spacing: 6) {
+                    VStack(spacing: 8) {
                         Image(systemName: "music.note.list")
-                            .font(.system(size: 20, weight: .medium))
+                            .font(.system(size: 22, weight: .medium))
                             .foregroundColor(Color.islandTextTertiary)
                         
                         Text("No Media Playing")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(Color.islandTextSecondary)
                         
                         Text("Play audio in Apple Music, Spotify, or your browser")
-                            .font(.system(size: 10, weight: .regular))
+                            .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.islandTextTertiary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 10)
                     
                     Button(action: {
                         WindowManager.shared.collapse()
@@ -103,7 +108,7 @@ public struct ExpandedIslandView: View {
                         Image(systemName: "chevron.up")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(Color.islandTextSecondary)
-                            .frame(width: 20, height: 20)
+                            .frame(width: 22, height: 22)
                             .background(Color.islandControlHover)
                             .clipShape(Circle())
                     }
@@ -112,6 +117,7 @@ public struct ExpandedIslandView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
