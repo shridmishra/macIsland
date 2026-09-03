@@ -3,17 +3,8 @@ import AppKit
 
 // MARK: - Media Item Model
 // Represents the currently active media playing on macOS.
-// Designed cleanly like a TypeScript interface/model:
-//   interface MediaItem {
-//     title: string;
-//     artist: string;
-//     album: string;
-//     artworkData?: Data;
-//     duration: number;
-//     currentTime: number;
-//     isPlaying: boolean;
-//     application: string;
-//   }
+// Supports smart service detection (mapping Netflix, Prime Video, YouTube, Spotify, etc.)
+// even when audio/video is playing inside web browsers like Brave, Chrome, Safari, or Arc.
 public struct MediaItem: Equatable, Sendable {
     public let id: String
     public let title: String
@@ -26,6 +17,12 @@ public struct MediaItem: Equatable, Sendable {
     public let application: String
     public let bundleIdentifier: String?
     public let lastUpdated: Date
+    
+    /// Detected underlying streaming service (e.g. .primeVideo, .netflix, .youtube, .spotify)
+    public let service: MediaService
+    
+    /// Clean title with service branding prefixes/suffixes removed
+    public let displayTitle: String
     
     public init(
         id: String = UUID().uuidString,
@@ -51,6 +48,31 @@ public struct MediaItem: Equatable, Sendable {
         self.application = application
         self.bundleIdentifier = bundleIdentifier
         self.lastUpdated = lastUpdated
+        
+        // Smart Service Detection & Title Cleaning
+        let detection = MediaService.detect(
+            title: title,
+            album: album,
+            artist: artist,
+            bundleId: bundleIdentifier
+        )
+        self.service = detection.service
+        self.displayTitle = detection.cleanedTitle
+    }
+    
+    /// Returns true if this media originated from a web browser (Brave, Chrome, Safari, etc.)
+    public var isBrowserMedia: Bool {
+        guard let bId = bundleIdentifier else { return false }
+        return MediaService.browserBundleIds.contains(bId)
+    }
+    
+    /// The user-facing application name.
+    /// If playing inside a browser (e.g. Brave), displays "Prime Video" or "Netflix" instead of the browser name.
+    public var effectiveAppName: String {
+        if service != .generic {
+            return service.rawValue
+        }
+        return application
     }
     
     /// Estimated current elapsed time based on playback status and elapsed wall-clock seconds.
@@ -58,25 +80,27 @@ public struct MediaItem: Equatable, Sendable {
         guard isPlaying else { return currentTime }
         let elapsedSinceUpdate = referenceDate.timeIntervalSince(lastUpdated)
         let estimated = currentTime + max(0, elapsedSinceUpdate)
-        if duration > 0 {
-            return min(estimated, duration)
-        }
-        return estimated
+        return duration > 0 ? min(estimated, duration) : estimated
     }
     
-    /// Normalized progress between 0.0 and 1.0.
+    /// Returns the fractional playback progress from 0.0 to 1.0.
     public func progressFraction(at referenceDate: Date = Date()) -> Double {
         guard duration > 0 else { return 0.0 }
-        let current = currentProgress(at: referenceDate)
-        return min(max(current / duration, 0.0), 1.0)
+        return max(0.0, min(1.0, currentProgress(at: referenceDate) / duration))
     }
     
-    /// Formats a time interval (in seconds) into a readable "m:ss" string (e.g. 214s -> "3:34").
+    /// Formats seconds into MM:SS (or HH:MM:SS for long media).
     public static func formatTime(_ seconds: TimeInterval) -> String {
-        guard !seconds.isNaN && !seconds.isInfinite && seconds >= 0 else { return "0:00" }
+        guard !seconds.isNaN, !seconds.isInfinite, seconds >= 0 else { return "0:00" }
         let totalSeconds = Int(seconds)
-        let minutes = totalSeconds / 60
-        let remainingSeconds = totalSeconds % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let secs = totalSeconds % 60
+        
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, secs)
+        } else {
+            return String(format: "%d:%02d", minutes, secs)
+        }
     }
 }

@@ -3,8 +3,8 @@ import AppKit
 
 // MARK: - ExpandedIslandView
 // The rich, interactive floating card revealed when hovering over Mac Island.
-// On notched displays, top padding ensures the pure black background seamlessly hugs
-// the hardware notch while keeping all controls in the clear, visible area below it.
+// Maps and displays the true streaming media service (Prime Video, Netflix, YouTube, Spotify)
+// even when audio/video is playing inside browsers like Brave, Chrome, Safari, or Arc.
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
     @ObservedObject private var windowManager = WindowManager.shared
@@ -16,13 +16,13 @@ public struct ExpandedIslandView: View {
     public var body: some View {
         VStack(spacing: 8) {
             if let item = mediaManager.currentItem {
-                // Top section: Artwork + Track details + App Badge + Collapse button
+                // Top section: Service/Album Artwork + Clean Track details + Streaming Service Badge + Collapse
                 HStack(alignment: .center, spacing: 12) {
-                    ArtworkImageView(artworkData: item.artworkData, size: 46, cornerRadius: 10)
+                    ArtworkImageView(item: item, size: 46, cornerRadius: 10)
                     
                     VStack(alignment: .leading, spacing: 2.5) {
-                        // Title
-                        Text(item.title)
+                        // Title (cleaned of "Prime Video: " or " - YouTube")
+                        Text(item.displayTitle)
                             .font(.system(size: 13.5, weight: .semibold))
                             .foregroundColor(Color.islandTextPrimary)
                             .lineLimit(1)
@@ -35,14 +35,14 @@ public struct ExpandedIslandView: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
-                        // Active Application Pill Badge
+                        // Streaming Service Pill Badge (e.g. "Prime Video" instead of "Brave Browser")
                         HStack(spacing: 4.5) {
                             Circle()
-                                .fill(item.isPlaying ? Color.islandAccent : Color.islandTextTertiary)
+                                .fill(item.isPlaying ? item.service.brandColor : Color.islandTextTertiary)
                                 .frame(width: 5, height: 5)
                             
-                            Text(item.application)
-                                .font(.system(size: 9.5, weight: .medium))
+                            Text(item.effectiveAppName)
+                                .font(.system(size: 9.5, weight: .semibold))
                                 .foregroundColor(Color.islandTextSecondary)
                         }
                         .padding(.horizontal, 6)

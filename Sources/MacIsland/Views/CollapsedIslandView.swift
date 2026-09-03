@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - CollapsedIslandView
 // The minimal resting state of Mac Island.
 // On notched displays, compact wings flank the physical cutout at the exact 28pt height of the notch.
-// The pure black background seamlessly merges the physical cutout and the digital island into one.
+// Shows the true streaming service icon (Prime Video, Netflix, YouTube, Spotify) instead of the browser logo.
 public struct CollapsedIslandView: View {
     public let item: MediaItem?
     public let isPlaying: Bool
@@ -35,7 +35,7 @@ public struct CollapsedIslandView: View {
             // LEFT WING: Outside the notch on the left
             HStack(spacing: 0) {
                 if let item = item {
-                    ArtworkImageView(artworkData: item.artworkData, size: 18, cornerRadius: 4.5)
+                    ArtworkImageView(item: item, size: 18, cornerRadius: 4.5)
                 } else {
                     Image(systemName: "music.note")
                         .font(.system(size: 10, weight: .semibold))
@@ -52,7 +52,10 @@ public struct CollapsedIslandView: View {
             // RIGHT WING: Outside the notch on the right
             HStack(spacing: 0) {
                 if isPlaying {
-                    AudioWaveformIndicator(isPlaying: true)
+                    AudioWaveformIndicator(
+                        isPlaying: true,
+                        color: item?.service.brandColor ?? Color.islandAccent
+                    )
                 } else if item != nil {
                     Image(systemName: "pause.fill")
                         .font(.system(size: 8, weight: .bold))
@@ -71,16 +74,19 @@ public struct CollapsedIslandView: View {
     private var standardCenteredLayout: some View {
         HStack(spacing: 7) {
             if let item = item {
-                ArtworkImageView(artworkData: item.artworkData, size: 18, cornerRadius: 4.5)
+                ArtworkImageView(item: item, size: 18, cornerRadius: 4.5)
                 
-                Text(item.title)
+                Text(item.displayTitle)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(Color.islandTextPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
-                AudioWaveformIndicator(isPlaying: isPlaying)
+                AudioWaveformIndicator(
+                    isPlaying: isPlaying,
+                    color: item.service.brandColor
+                )
             } else {
                 Image(systemName: "music.note")
                     .font(.system(size: 10, weight: .semibold))
