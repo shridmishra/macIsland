@@ -1,14 +1,18 @@
 import SwiftUI
 
 // MARK: - MediaService
-// Identifies specific media streaming services (Netflix, Prime Video, YouTube, Spotify, etc.)
+// Identifies specific media streaming services (Netflix, Prime Video, YouTube, YouTube Music, Spotify, etc.)
 // even when playing inside browsers (Brave, Chrome, Safari, Edge, Arc, Firefox).
 public enum MediaService: String, CaseIterable, Sendable {
     case primeVideo = "Prime Video"
     case netflix = "Netflix"
+    case youtubeMusic = "YouTube Music"
     case youtube = "YouTube"
     case spotify = "Spotify"
     case appleMusic = "Apple Music"
+    case jioSaavn = "JioSaavn"
+    case gaana = "Gaana"
+    case amazonMusic = "Amazon Music"
     case disneyPlus = "Disney+"
     case soundcloud = "SoundCloud"
     case twitch = "Twitch"
@@ -18,16 +22,20 @@ public enum MediaService: String, CaseIterable, Sendable {
     /// Vibrant brand colors matching the streaming service's official logo
     public var brandColor: Color {
         switch self {
-        case .youtube:
+        case .youtube, .youtubeMusic:
             return Color(red: 1.0, green: 0.0, blue: 0.0) // Pure YouTube Red #FF0000
         case .netflix:
             return Color(red: 0.90, green: 0.06, blue: 0.10) // Netflix Iconic Red #E50914
         case .spotify:
             return Color(red: 0.11, green: 0.84, blue: 0.38) // Spotify Electric Green #1DB954
-        case .primeVideo:
-            return Color(red: 0.0, green: 0.65, blue: 0.95) // Prime Video Cyan-Blue #00A8E1
+        case .primeVideo, .amazonMusic:
+            return Color(red: 0.0, green: 0.65, blue: 0.95) // Prime Video / Amazon Music Cyan-Blue #00A8E1
         case .appleMusic:
             return Color(red: 0.99, green: 0.24, blue: 0.36) // Apple Music Coral Red #FC3C44
+        case .jioSaavn:
+            return Color(red: 0.17, green: 0.77, blue: 0.71) // JioSaavn Teal #2BC5B4
+        case .gaana:
+            return Color(red: 0.91, green: 0.17, blue: 0.19) // Gaana Red #E72C30
         case .disneyPlus:
             return Color(red: 0.07, green: 0.39, blue: 0.90) // Disney+ Royal Blue #0063E5
         case .soundcloud:
@@ -77,52 +85,71 @@ public enum MediaService: String, CaseIterable, Sendable {
             return (.netflix, clean)
         }
         
-        // 3. YouTube (explicit name, youtu.be, or YouTube channel handles with @)
-        if combined.contains("youtube") || combined.contains("youtu.be") || combined.contains("@") {
-            var clean = title
-            if let range = clean.range(of: " - YouTube", options: .backwards) {
-                clean.removeSubrange(range)
-            }
+        // 3. YouTube Music
+        if combined.contains("youtube music") || combined.contains("music.youtube") {
+            let clean = cleanPrefix(title, prefix: "YouTube Music: ")
+            return (.youtubeMusic, clean)
+        }
+        
+        // 4. YouTube (videos, channels, handles)
+        if combined.contains("youtube") || combined.contains("@") || combined.contains("youtu.be") {
+            let clean = cleanPrefix(title, prefix: "YouTube: ")
             return (.youtube, clean)
         }
         
-        // 4. Spotify
-        if bundleId == "com.spotify.client" || (isBrowser && combined.contains("spotify")) {
+        // 5. Spotify
+        if combined.contains("spotify") || bundleId == "com.spotify.client" {
             return (.spotify, title)
         }
         
-        // 5. Apple Music
-        if bundleId == "com.apple.Music" {
+        // 6. Apple Music
+        if combined.contains("apple music") || bundleId == "com.apple.Music" {
             return (.appleMusic, title)
         }
         
-        // 6. Disney+ / Hotstar
-        if combined.contains("disney+") || combined.contains("disney plus") || combined.contains("hotstar") {
+        // 7. JioSaavn
+        if combined.contains("jiosaavn") || combined.contains("saavn") {
+            return (.jioSaavn, title)
+        }
+        
+        // 8. Gaana
+        if combined.contains("gaana") {
+            return (.gaana, title)
+        }
+        
+        // 9. Disney+
+        if combined.contains("disney+") || combined.contains("disneyplus") || combined.contains("hotstar") {
             return (.disneyPlus, title)
         }
         
-        // 7. SoundCloud
+        // 10. SoundCloud
         if combined.contains("soundcloud") {
             return (.soundcloud, title)
         }
         
-        // 8. Twitch
+        // 11. Twitch
         if combined.contains("twitch") {
             return (.twitch, title)
         }
         
-        // 9. Apple TV
-        if bundleId == "com.apple.TV" {
-            return (.appleTV, title)
+        // Fallback for native apps
+        if !isBrowser {
+            if appName.contains("Music") {
+                return (.appleMusic, title)
+            } else if appName.contains("Spotify") {
+                return (.spotify, title)
+            } else if appName.contains("TV") {
+                return (.appleTV, title)
+            }
         }
         
         return (.generic, title)
     }
     
-    private static func cleanPrefix(_ string: String, prefix: String) -> String {
-        if string.lowercased().hasPrefix(prefix.lowercased()) {
-            return String(string.dropFirst(prefix.count))
+    private static func cleanPrefix(_ title: String, prefix: String) -> String {
+        if title.hasPrefix(prefix) {
+            return String(title.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
         }
-        return string
+        return title
     }
 }
