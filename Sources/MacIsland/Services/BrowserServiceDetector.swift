@@ -6,6 +6,8 @@ public struct BrowserMediaDetection: Sendable {
     public let service: MediaService
     public let currentTime: Double?
     public let duration: Double?
+    public let url: String?
+    public let tabTitle: String?
 }
 
 // MARK: - BrowserServiceDetector
@@ -109,7 +111,7 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                             repeat with w in windows
                                 repeat with t in tabs of w
                                     try
-                                        set js to do JavaScript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const m = document.querySelector('video, audio'); const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying; })()" in t
+                                        set js to do JavaScript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const all = Array.from(document.querySelectorAll('video, audio')); let m = all.find(el => !el.paused && !el.ended && el.currentTime > 0) || all.find(el => !el.paused && !el.ended) || all.find(el => el.currentTime > 0 && !el.ended) || all[0]; const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying; })()" in t
                                         if "\(lowerPrefix)" is not "" and js contains "\(lowerPrefix)" then
                                             set match to js
                                             exit repeat
@@ -139,7 +141,7 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                                 repeat with t in tabs of w
                                     try
                                         tell t
-                                            set js to execute javascript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const m = document.querySelector('video, audio'); const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying; })()"
+                                            set js to execute javascript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const all = Array.from(document.querySelectorAll('video, audio')); let m = all.find(el => !el.paused && !el.ended && el.currentTime > 0) || all.find(el => !el.paused && !el.ended) || all.find(el => el.currentTime > 0 && !el.ended) || all[0]; const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying; })()"
                                         end tell
                                         if "\(lowerPrefix)" is not "" and js contains "\(lowerPrefix)" then
                                             set match to js
@@ -156,13 +158,6 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                             else if playingMatch is not "" then
                                 return playingMatch
                             end if
-                            try
-                                tell active tab of window 1
-                                    set u to URL
-                                    set js to execute javascript "(() => { const m = document.querySelector('video, audio'); return m ? (m.currentTime + ',' + m.duration) : ''; })()"
-                                    return u + "|||" + js
-                                end tell
-                            end try
                         end if
                     end tell
                     return ""
@@ -192,6 +187,8 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                             detected = .youtubeMusic
                         } else if lower.contains("youtube.com") || lower.contains("youtu.be") {
                             detected = .youtube
+                        } else if lower.contains("x.com") || lower.contains("twitter.com") {
+                            detected = .x
                         } else if lower.contains("spotify.com") {
                             detected = .spotify
                         } else if lower.contains("netflix.com") {
@@ -226,16 +223,20 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                             }
                         }
                         
+                        self?.setActiveService(detected, for: [bundleId, appName, "Brave Browser", "com.brave.Browser"])
                         if detected != .generic {
-                            self?.setActiveService(detected, for: [bundleId, appName, "Brave Browser", "com.brave.Browser"])
                             let key = "\(bundleId):\(trackTitle)" as NSString
                             self?.cache.setObject(detected.rawValue as NSString, forKey: key)
                         }
                         
+                        let extractedTabTitle = parts.count > 3 ? parts[3] : nil
+                        
                         continuation.resume(returning: BrowserMediaDetection(
                             service: detected,
                             currentTime: extractedTime,
-                            duration: extractedDuration
+                            duration: extractedDuration,
+                            url: urlStr.isEmpty ? nil : urlStr,
+                            tabTitle: extractedTabTitle?.isEmpty == false ? extractedTabTitle : nil
                         ))
                         return
                     }

@@ -16,6 +16,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         // Run as accessory utility (no Dock icon)
         NSApplication.shared.setActivationPolicy(.accessory)
         
+        // Start system HUD manager for volume and brightness indicators
+        _ = SystemHUDManager.shared
+        
+        // Start battery HUD manager for real-time charging and power status notifications
+        _ = BatteryHUDManager.shared
+        
         // Launch and present the Island panel
         IslandWindowController.shared.showIsland()
         
@@ -61,5 +67,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc private func quitApp() {
         NSApplication.shared.terminate(nil)
+    }
+    
+    public func applicationWillTerminate(_ notification: Notification) {
+        SystemHUDManager.shared.restoreNativeOSD()
     }
 }

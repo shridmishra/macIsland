@@ -12,11 +12,25 @@ public struct CollapsedIslandView: View {
     public let isPlaying: Bool
     public var namespace: Namespace.ID
     @ObservedObject private var windowManager = WindowManager.shared
+    @ObservedObject private var lyricsManager = LyricsManager.shared
+    @ObservedObject private var hudManager = SystemHUDManager.shared
+    @ObservedObject private var mediaManager = MediaManager.shared
+    @ObservedObject private var pomodoroManager = PomodoroManager.shared
     
     public init(item: MediaItem?, isPlaying: Bool, namespace: Namespace.ID) {
         self.item = item
         self.isPlaying = isPlaying
         self.namespace = namespace
+    }
+    
+    private var isLyricsActive: Bool {
+        lyricsManager.isLyricsEnabled
+    }
+    
+    private var currentDateShort: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: Date())
     }
     
     public var body: some View {
@@ -30,26 +44,73 @@ public struct CollapsedIslandView: View {
         .frame(height: windowManager.collapsedHeight)
         .contentShape(Rectangle())
         .onTapGesture {
-            WindowManager.shared.expand()
+            if !hudManager.isHUDActive {
+                WindowManager.shared.expand()
+            }
         }
     }
     
     // MARK: - Notched Display Wing Layout (Symmetrical Optical Centering)
     private var notchWingLayout: some View {
-        HStack(spacing: 0) {
+        let rightWingWidth = windowManager.currentRightWingWidth
+        
+        return HStack(spacing: 0) {
             // LEFT WING (44pt): [Flare 6pt] + [11pt gap] + [Icon 16pt] + [11pt gap] -> Notch
             HStack(spacing: 0) {
                 Spacer()
                     .frame(width: 6) // Accounts for the top-left outward flare curve
                 
                 ZStack {
-                    if let item = item {
-                        ArtworkImageView(item: item, size: 16, cornerRadius: 4)
-                            .matchedGeometryEffect(id: "islandArtwork", in: namespace)
+                    if hudManager.isHUDActive {
+                        Group {
+                            if hudManager.hudType == .brightness {
+                                Image(systemName: hudManager.brightnessIconName)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(Color.islandTextPrimary)
+                            } else if hudManager.hudType == .battery {
+                                HStack(spacing: 3) {
+                                    Text("\(hudManager.batteryPercentage)%")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(hudManager.batteryColor)
+                                        .lineLimit(1)
+                                        .fixedSize()
+                                    
+                                    Image(systemName: hudManager.batteryIconName)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(hudManager.batteryColor)
+                                }
+                            } else {
+                                Image(systemName: hudManager.volumeIconName)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(Color.islandTextPrimary)
+                            }
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                    } else if let item = item {
+                        if mediaManager.isTransitioning {
+                            SkeletonArtworkView(size: 16, cornerRadius: 4)
+                                .transition(.opacity)
+                        } else {
+                            ArtworkImageView(item: item, size: 16, cornerRadius: 4)
+                                .matchedGeometryEffect(id: "islandArtwork", in: namespace)
+                                .onTapGesture {
+                                    MediaManager.shared.openCurrentSource()
+                                }
+                                .transition(.opacity)
+                        }
                     } else {
-                        Image(systemName: "music.note")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(Color.islandTextSecondary)
+                        // Left Wing Nothing State: White capsule pill matching screenshot UI
+                        Text(pomodoroManager.formattedPillTime)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundColor(Color.islandPillText)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1.5)
+                            .background(
+                                Capsule()
+                                    .fill(Color.islandPillBackground)
+                            )
+                            .transition(.opacity)
                     }
                 }
                 .offset(y: -2) // Nudged upwards for optical balance
@@ -61,66 +122,245 @@ public struct CollapsedIslandView: View {
             Color.clear
                 .frame(width: windowManager.notchWidth)
             
-            // RIGHT WING (44pt): Notch -> [11pt gap] + [Equalizer 16pt] + [11pt gap] + [Flare 6pt]
+            // RIGHT WING: Notch -> [HUD Bar OR TopLyricsView OR Waveform Equalizer]
             HStack(spacing: 0) {
-                ZStack {
-                    if let item = item {
-                        let pulseColor = isPlaying ? item.pulseColor : item.pulseColor.opacity(0.75)
-                        AudioWaveformIndicator(
-                            isPlaying: isPlaying,
-                            color: pulseColor
-                        )
-                        .matchedGeometryEffect(id: "islandWaveform", in: namespace)
-                        .animation(.easeInOut(duration: 0.25), value: isPlaying)
+                if item != nil && isLyricsActive && !hudManager.isHUDActive {
+                    if lyricsManager.showNoLyricsNotice {
+                        // "No lyrics" notice displayed for first 5 seconds
+                        Spacer()
+                            .frame(width: 14)
+                        
+                        TopLyricsView(isPlaying: isPlaying)
+                            .offset(y: -1.5)
+                        
+                        Spacer()
+                            .frame(width: 8)
+                    } else if !lyricsManager.hasLyrics && !lyricsManager.isLoading {
+                        // After 5 seconds: Revert to the audio waveform pulse!
+                        if let item = item {
+                            let pulseColors = isPlaying ? item.pulseColors : item.pulseColors.map { $0.opacity(0.75) }
+                            AudioWaveformIndicator(
+                                isPlaying: isPlaying,
+                                colors: pulseColors
+                            )
+                            .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                            .animation(.easeInOut(duration: 0.25), value: isPlaying)
+                            .transition(.opacity)
+                            .offset(y: -2)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        } else {
+                            Circle()
+                                .fill(Color.islandTextTertiary)
+                                .frame(width: 4, height: 4)
+                        }
+                        
+                        Spacer()
+                            .frame(width: 6)
+                    } else if let line = lyricsManager.currentLine, !line.text.isEmpty {
+                        // Active singing: 14pt leading clearance from notch, full lyrics text
+                        Spacer()
+                            .frame(width: 14)
+                        
+                        TopLyricsView(isPlaying: isPlaying)
+                            .offset(y: -1.5) // Optical vertical center in menu bar
+                        
+                        Spacer()
+                            .frame(width: 14)
+                    } else if lyricsManager.isLoading {
+                        // Loading state: 14pt clearance
+                        Spacer()
+                            .frame(width: 14)
+                        
+                        TopLyricsView(isPlaying: isPlaying)
+                            .offset(y: -1.5)
+                        
+                        Spacer()
+                            .frame(width: 8)
                     } else {
-                        Circle()
-                            .fill(Color.islandTextTertiary)
-                            .frame(width: 4, height: 4)
+                        // Instrumental / Intro: Animated beat tune icon centered in 44pt wing!
+                        TopLyricsView(isPlaying: isPlaying)
+                            .offset(y: -2)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        
+                        Spacer()
+                            .frame(width: 6) // Outward flare curve
                     }
+                } else {
+                    ZStack {
+                        if hudManager.isHUDActive {
+                            if hudManager.hudType == .battery {
+                                Text(hudManager.batteryText)
+                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .foregroundColor(hudManager.batteryColor)
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
+                                    .transition(.scale(scale: 0.95).combined(with: .opacity))
+                            } else {
+                                HUDLevelBarView(level: hudManager.level) { newLevel in
+                                    if hudManager.hudType == .brightness {
+                                        hudManager.setBrightness(newLevel)
+                                    } else {
+                                        hudManager.setVolume(newLevel)
+                                    }
+                                }
+                                .transition(.opacity)
+                            }
+                        } else if let item = item {
+                            let pulseColors = isPlaying ? item.pulseColors : item.pulseColors.map { $0.opacity(0.75) }
+                            AudioWaveformIndicator(
+                                isPlaying: isPlaying,
+                                colors: pulseColors
+                            )
+                            .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                            .animation(.easeInOut(duration: 0.25), value: isPlaying)
+                            .transition(.opacity)
+                        } else {
+                            // Right Wing Nothing State: Calendar Date indicator
+                            HStack(spacing: 2.5) {
+                                Image(systemName: "calendar")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundColor(Color.islandTextSecondary)
+                                Text("\(Calendar.current.component(.day, from: Date()))")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundColor(Color.islandTextPrimary)
+                            }
+                            .transition(.opacity)
+                        }
+                    }
+                    .offset(y: -2) // Nudged upwards for optical balance
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    
+                    Spacer()
+                        .frame(width: 6) // Accounts for the top-right outward flare curve
                 }
-                .offset(y: -2) // Nudged upwards for optical balance
-                .frame(maxWidth: .infinity, alignment: .center)
-                
-                Spacer()
-                    .frame(width: 6) // Accounts for the top-right outward flare curve
             }
-            .frame(width: 44, height: windowManager.collapsedHeight)
+            .frame(width: rightWingWidth, height: windowManager.collapsedHeight, alignment: .leading)
+            .clipped()
+            .mask {
+                let isLyricsShowing = item != nil && isLyricsActive && !hudManager.isHUDActive && lyricsManager.currentLine != nil
+                if isLyricsShowing {
+                    HStack(spacing: 0) {
+                        Rectangle()
+                            .fill(Color.black)
+                        LinearGradient(
+                            colors: [Color.black, Color.black.opacity(0)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: 16)
+                    }
+                } else {
+                    Rectangle().fill(Color.black)
+                }
+            }
+            .animation(IslandAnimation.notchSpring, value: rightWingWidth)
         }
     }
     
     // MARK: - Standard Non-Notched Screen Layout
     private var standardCenteredLayout: some View {
-        HStack(spacing: 7) {
-            if let item = item {
-                let pulseColor = isPlaying ? item.pulseColor : item.pulseColor.opacity(0.75)
-                ArtworkImageView(item: item, size: 16, cornerRadius: 4)
-                    .matchedGeometryEffect(id: "islandArtwork", in: namespace)
+        HStack(spacing: 8) {
+            if hudManager.isHUDActive {
+                if hudManager.hudType == .brightness {
+                    Image(systemName: hudManager.brightnessIconName)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.islandTextPrimary)
+                } else if hudManager.hudType == .battery {
+                    HStack(spacing: 3) {
+                        Text("\(hudManager.batteryPercentage)%")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(hudManager.batteryColor)
+                            .lineLimit(1)
+                            .fixedSize()
+                        
+                        Image(systemName: hudManager.batteryIconName)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(hudManager.batteryColor)
+                    }
+                } else {
+                    Image(systemName: hudManager.volumeIconName)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color.islandTextPrimary)
+                }
                 
-                MarqueeText(
-                    text: item.displayTitle,
-                    font: .system(size: 11, weight: .semibold),
-                    nsFont: .systemFont(ofSize: 11, weight: .semibold),
-                    color: Color.islandTextPrimary,
-                    isPlaying: isPlaying,
-                    speed: 26.0,
-                    holdDelay: 2.0,
-                    spacing: 28.0,
-                    fadeLength: 10.0
-                )
+                if hudManager.hudType == .battery {
+                    Text(hudManager.batteryText)
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundColor(hudManager.batteryColor)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                } else {
+                    HUDLevelBarView(level: hudManager.level) { newLevel in
+                        if hudManager.hudType == .brightness {
+                            hudManager.setBrightness(newLevel)
+                        } else {
+                            hudManager.setVolume(newLevel)
+                        }
+                    }
+                }
+            } else if let item = item {
+                if mediaManager.isTransitioning {
+                    SkeletonArtworkView(size: 16, cornerRadius: 4)
+                } else {
+                    ArtworkImageView(item: item, size: 16, cornerRadius: 4)
+                        .matchedGeometryEffect(id: "islandArtwork", in: namespace)
+                        .onTapGesture {
+                            MediaManager.shared.openCurrentSource()
+                        }
+                }
                 
-                AudioWaveformIndicator(
-                    isPlaying: isPlaying,
-                    color: pulseColor
-                )
-                .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                if isLyricsActive {
+                    TopLyricsView(isPlaying: isPlaying, maxWidth: 200)
+                        .transition(.opacity)
+                } else if mediaManager.isTransitioning {
+                    SkeletonTextLine(width: 80, height: 10)
+                } else {
+                    let pulseColors = isPlaying ? item.pulseColors : item.pulseColors.map { $0.opacity(0.75) }
+                    
+                    MarqueeText(
+                        text: item.displayTitle,
+                        font: .system(size: 11, weight: .semibold),
+                        nsFont: .systemFont(ofSize: 11, weight: .semibold),
+                        color: Color.islandTextPrimary,
+                        isPlaying: isPlaying,
+                        speed: 26.0,
+                        holdDelay: 2.0,
+                        spacing: 28.0,
+                        fadeLength: 10.0
+                    )
+                    
+                    AudioWaveformIndicator(
+                        isPlaying: isPlaying,
+                        colors: pulseColors
+                    )
+                    .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                }
             } else {
-                Image(systemName: "music.note")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(Color.islandTextSecondary)
+                // Non-Notched Screen Nothing State: White pill matching screenshot + Calendar date
+                Text(pomodoroManager.formattedPillTime)
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundColor(Color.islandPillText)
+                    .padding(.horizontal, 5.5)
+                    .padding(.vertical, 1.5)
+                    .background(
+                        Capsule()
+                            .fill(Color.islandPillBackground)
+                    )
                 
-                Text("Mac Island")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color.islandTextSecondary)
+                Circle()
+                    .fill(Color.islandDivider)
+                    .frame(width: 3, height: 3)
+                
+                HStack(spacing: 3) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundColor(Color.islandTextSecondary)
+                    
+                    Text(currentDateShort)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundColor(Color.islandTextPrimary)
+                }
             }
         }
         .padding(.horizontal, 10)

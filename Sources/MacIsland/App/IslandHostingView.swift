@@ -89,17 +89,32 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
     // MARK: - Geometry Helper
     private func isPointInIsland(_ point: NSPoint) -> Bool {
         let isExpanded = WindowManager.shared.islandState.isExpanded
-        let w = isExpanded ? WindowManager.shared.expandedWidth : WindowManager.shared.collapsedWidth
         let h = isExpanded ? WindowManager.shared.expandedHeight : WindowManager.shared.collapsedHeight
         
-        // NSHostingView is flipped (isFlipped == true, (0, 0) is top-left).
-        // The island is anchored directly to the top edge touching the screen bezel / menu bar.
-        // Therefore, y starts at 0 and spans downward to height `h`.
-        // When collapsed, h is the menu bar / notch height (28pt).
-        // Only when expanded does h extend downward into the screen (152pt).
-        let x = (bounds.width - w) / 2.0
-        let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
-        let islandRect = NSRect(x: x, y: y, width: w, height: h + 2)
+        let centerX = bounds.width / 2.0
+        let islandRect: NSRect
+        
+        if isExpanded {
+            let w = WindowManager.shared.expandedWidth
+            let x = centerX - w / 2.0
+            let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
+            islandRect = NSRect(x: x, y: y, width: w, height: h + 2)
+        } else if WindowManager.shared.hasNotch {
+            let leftW: CGFloat = 44.0
+            let notchW = WindowManager.shared.notchWidth
+            let rightW = WindowManager.shared.currentRightWingWidth
+            
+            // Pinned precisely to the left of the physical camera notch:
+            let x = centerX - notchW / 2.0 - leftW
+            let totalW = leftW + notchW + rightW
+            let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
+            islandRect = NSRect(x: x, y: y, width: totalW, height: h + 2)
+        } else {
+            let w = WindowManager.shared.collapsedWidth
+            let x = centerX - w / 2.0
+            let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
+            islandRect = NSRect(x: x, y: y, width: w, height: h + 2)
+        }
         
         return islandRect.contains(point)
     }

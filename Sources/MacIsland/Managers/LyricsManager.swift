@@ -14,8 +14,15 @@ public final class LyricsManager: ObservableObject {
     @Published public var isLyricsEnabled: Bool {
         didSet {
             UserDefaults.standard.set(isLyricsEnabled, forKey: "MacIsland.isLyricsEnabled")
-            if isLyricsEnabled && currentLyrics == nil && !isLoading {
-                fetchCurrentTrackLyrics()
+            if isLyricsEnabled {
+                if currentLyrics == nil && !isLoading {
+                    fetchCurrentTrackLyrics()
+                } else if !hasLyrics && !isLoading {
+                    triggerNoLyricsNotice()
+                }
+            } else {
+                noLyricsTimer?.cancel()
+                showNoLyricsNotice = false
             }
         }
     }
@@ -24,7 +31,9 @@ public final class LyricsManager: ObservableObject {
     @Published public private(set) var currentLine: LyricLine?
     @Published public private(set) var isLoading: Bool = false
     @Published public private(set) var hasLyrics: Bool = false
+    @Published public private(set) var showNoLyricsNotice: Bool = false
     
+    private var noLyricsTimer: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
     private var syncTicker: Timer?
     private var currentTrackKey: String = ""
@@ -67,6 +76,8 @@ public final class LyricsManager: ObservableObject {
             return
         }
         
+        self.noLyricsTimer?.cancel()
+        self.showNoLyricsNotice = false
         self.currentTrackKey = trackKey
         self.currentLyrics = nil
         self.currentLine = nil
@@ -111,15 +122,31 @@ public final class LyricsManager: ObservableObject {
                     self.currentLine = nil
                     self.hasLyrics = false
                     self.logger.info("ℹ️ [LyricsManager] No lyrics found for '\(title, privacy: .public)'")
+                    if self.isLyricsEnabled {
+                        self.triggerNoLyricsNotice()
+                    }
                 }
+            }
+        }
+    }
+    
+    /// Shows "No lyrics" text for 5 seconds, then gracefully reverts to the audio waveform pulse
+    public func triggerNoLyricsNotice() {
+        noLyricsTimer?.cancel()
+        showNoLyricsNotice = true
+        noLyricsTimer = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
+            guard !Task.isCancelled else { return }
+            withAnimation(IslandAnimation.notchSpring) {
+                self?.showNoLyricsNotice = false
             }
         }
     }
     
     // MARK: - Synchronized Line Tracker
     private func startSyncTicker() {
-        // Runs a timer every 0.3 seconds to check the active lyrics line smoothly
-        let ticker = Timer(timeInterval: 0.3, repeats: true) { [weak self] _ in
+        // High-precision 80ms ticker (12.5 ticks/sec) for instantaneous line transitions
+        let ticker = Timer(timeInterval: 0.08, repeats: true) { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self = self, self.isLyricsEnabled else { return }
                 self.updateCurrentLine(for: MediaManager.shared.currentItem)
@@ -131,13 +158,19 @@ public final class LyricsManager: ObservableObject {
     
     private func updateCurrentLine(for item: MediaItem?) {
         guard let item = item, let lyrics = currentLyrics else {
-            if currentLine != nil { currentLine = nil }
+            if currentLine != nil {
+                withAnimation(IslandAnimation.notchSpring) {
+                    currentLine = nil
+                }
+            }
             return
         }
         
         if lyrics.isInstrumental {
             if currentLine?.text != "Instrumental" {
-                currentLine = LyricLine(timestamp: 0, text: "Instrumental")
+                withAnimation(IslandAnimation.notchSpring) {
+                    currentLine = LyricLine(timestamp: 0, text: "Instrumental")
+                }
             }
             return
         }
@@ -147,21 +180,31 @@ public final class LyricsManager: ObservableObject {
                 // If only plain lyrics exist, display non-synced note or first line
                 if currentLine == nil {
                     let firstLine = plain.components(separatedBy: .newlines).first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? plain
-                    currentLine = LyricLine(timestamp: 0, text: firstLine)
+                    withAnimation(IslandAnimation.notchSpring) {
+                        currentLine = LyricLine(timestamp: 0, text: firstLine)
+                    }
                 }
             }
             return
         }
         
-        let currentTime = item.currentProgress()
+        // Natural vocal lead anticipation offset:
+        // LRC timestamps specify the exact millisecond audio frequencies start.
+        // Adding 400ms anticipation ensures the line appears right as the singer
+        // begins the phrase, eliminating any perceived lag.
+        let anticipationLead: TimeInterval = 0.40
+        let currentTime = item.currentProgress() + anticipationLead
         let matchingLine = lyrics.line(at: currentTime)
         
         if currentLine != matchingLine {
-            currentLine = matchingLine
+            withAnimation(IslandAnimation.notchSpring) {
+                currentLine = matchingLine
+            }
         }
     }
     
     deinit {
         syncTicker?.invalidate()
+        noLyricsTimer?.cancel()
     }
 }

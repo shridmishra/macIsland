@@ -18,6 +18,7 @@ public struct MediaItem: Equatable, Sendable {
     public let application: String
     public let bundleIdentifier: String?
     public let lastUpdated: Date
+    public let url: String?
     
     /// Detected underlying streaming service (e.g. .primeVideo, .netflix, .youtube, .spotify)
     public let service: MediaService
@@ -37,11 +38,11 @@ public struct MediaItem: Equatable, Sendable {
         application: String = "Media",
         bundleIdentifier: String? = nil,
         lastUpdated: Date = Date(),
-        service: MediaService? = nil
+        service: MediaService? = nil,
+        url: String? = nil
     ) {
         self.id = id
         self.title = title
-        self.artist = artist
         self.album = album
         self.artworkData = artworkData
         self.duration = duration
@@ -50,25 +51,22 @@ public struct MediaItem: Equatable, Sendable {
         self.application = application
         self.bundleIdentifier = bundleIdentifier
         self.lastUpdated = lastUpdated
+        self.url = url
         
-        if let explicitService = service {
-            self.service = explicitService
-            let detection = MediaService.detect(
-                title: title,
-                album: album,
-                artist: artist,
-                bundleId: bundleIdentifier
-            )
-            self.displayTitle = detection.cleanedTitle
+        let detection = MediaService.detect(
+            title: title,
+            album: album,
+            artist: artist,
+            bundleId: bundleIdentifier
+        )
+        
+        self.service = service ?? detection.service
+        self.displayTitle = detection.cleanedTitle
+        
+        if artist.isEmpty, let extracted = detection.extractedAuthor, !extracted.isEmpty {
+            self.artist = extracted
         } else {
-            let detection = MediaService.detect(
-                title: title,
-                album: album,
-                artist: artist,
-                bundleId: bundleIdentifier
-            )
-            self.service = detection.service
-            self.displayTitle = detection.cleanedTitle
+            self.artist = artist
         }
     }
     
@@ -87,9 +85,14 @@ public struct MediaItem: Equatable, Sendable {
         return lowerApp.contains("brave") || lowerApp.contains("chrome") || lowerApp.contains("safari") || lowerApp.contains("edge") || lowerApp.contains("arc") || lowerApp.contains("firefox") || lowerApp.contains("opera") || lowerApp.contains("browser")
     }
     
+    /// Dynamic waveform multi-color gradient palette extracted from artwork, service logo, or app icon
+    public var pulseColors: [Color] {
+        ArtworkColorExtractor.shared.colors(for: self)
+    }
+    
     /// Dynamic waveform pulse accent color extracted from album artwork, service logo, or app icon
     public var pulseColor: Color {
-        ArtworkColorExtractor.shared.color(for: self)
+        pulseColors.first ?? ArtworkColorExtractor.shared.color(for: self)
     }
     
     /// The user-facing application name.
@@ -99,6 +102,18 @@ public struct MediaItem: Equatable, Sendable {
             return service.rawValue
         }
         return application
+    }
+    
+    /// Subtitle formatted for display in the island (e.g. "Dean W. Perkins • X" or "The Weeknd • Spotify")
+    public var subtitleText: String {
+        let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedArtist.isEmpty && trimmedArtist.lowercased() != effectiveAppName.lowercased() {
+            if service != .generic {
+                return "\(trimmedArtist) • \(effectiveAppName)"
+            }
+            return trimmedArtist
+        }
+        return effectiveAppName
     }
     
     /// Estimated current elapsed time based on playback status and elapsed wall-clock seconds.

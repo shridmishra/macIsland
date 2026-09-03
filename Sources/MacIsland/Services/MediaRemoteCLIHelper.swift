@@ -42,13 +42,17 @@ public final class MediaRemoteCLIHelper: @unchecked Sendable {
         d["artist"] = info["kMRMediaRemoteNowPlayingInfoArtist"] as? String ?? ""
         d["album"] = info["kMRMediaRemoteNowPlayingInfoAlbum"] as? String ?? ""
         d["duration"] = info["kMRMediaRemoteNowPlayingInfoDuration"] as? Double ?? 0.0
-        d["elapsedTime"] = info["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? Double ?? 0.0
-        d["playbackRate"] = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double ?? 0.0
-        if let ts = info["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date {
-            d["timestamp"] = ts.timeIntervalSince1970
-        } else {
-            d["timestamp"] = Date().timeIntervalSince1970
+        let playbackRate = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double ?? 0.0
+        var elapsed = info["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? Double ?? 0.0
+        if let ts = info["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date, playbackRate > 0.0 {
+            let diff = Date().timeIntervalSince(ts)
+            if diff > 0 && diff < 10.0 {
+                elapsed += diff * playbackRate
+            }
         }
+        d["elapsedTime"] = elapsed
+        d["playbackRate"] = playbackRate
+        d["timestamp"] = Date().timeIntervalSince1970
         if let artwork = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
             d["artwork"] = artwork.base64EncodedString()
         }

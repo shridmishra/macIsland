@@ -38,6 +38,22 @@ public struct MediaControlButtons: View {
     
     public var body: some View {
         ZStack {
+            // Left side: Apple Music Lyrics Toggle Button
+            HStack {
+                Button(action: onToggleLyrics) {
+                    Image(systemName: isLyricsEnabled ? "quote.bubble.fill" : "quote.bubble")
+                        .font(.system(size: 13.5, weight: isLyricsEnabled ? .bold : .medium))
+                        .foregroundColor(isLyricsEnabled ? Color.islandTextPrimary : Color.white.opacity(hoverLyrics ? 0.85 : 0.48))
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.springPress(scale: 0.88))
+                .onHover { hoverLyrics = $0 }
+                .help(isLyricsEnabled ? "Hide Lyrics" : "Show Lyrics")
+                .padding(.leading, 8)
+                
+                Spacer()
+            }
+            
             // Centered playback buttons: Previous | Play/Pause | Next
             HStack(spacing: 26) {
                 // Previous button with tactile press feedback
@@ -69,27 +85,15 @@ public struct MediaControlButtons: View {
             }
             .frame(maxWidth: .infinity, alignment: .center)
             
-            // Bottom-right corner controls: Audio Route Icon + Lyrics Toggle Button
-            HStack(spacing: 12) {
-                Spacer()
-                
-                if let iconName = audioRouteIcon {
+            // Right side: Audio destination route icon (Mac / AirPods / Headphones)
+            if let iconName = audioRouteIcon {
+                HStack {
+                    Spacer()
                     Image(systemName: iconName)
                         .font(.system(size: 13.5, weight: .medium))
                         .foregroundColor(Color.white.opacity(0.48))
                         .offset(y: 1) // Optically centered with transport controls
                 }
-                
-                // Lyrics toggle button matching Apple Music Dynamic Island
-                Button(action: onToggleLyrics) {
-                    Image(systemName: isLyricsEnabled ? "quote.bubble.fill" : "quote.bubble")
-                        .font(.system(size: 13, weight: isLyricsEnabled ? .bold : .medium))
-                        .foregroundColor(isLyricsEnabled ? Color.islandTextPrimary : Color.white.opacity(hoverLyrics ? 0.85 : 0.48))
-                        .contentTransition(.symbolEffect(.replace))
-                }
-                .buttonStyle(.springPress(scale: 0.88))
-                .onHover { hoverLyrics = $0 }
-                .help(isLyricsEnabled ? "Hide Lyrics" : "Show Lyrics")
             }
         }
         .frame(height: 22)

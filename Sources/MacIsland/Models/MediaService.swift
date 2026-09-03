@@ -8,6 +8,7 @@ public enum MediaService: String, CaseIterable, Sendable {
     case netflix = "Netflix"
     case youtubeMusic = "YouTube Music"
     case youtube = "YouTube"
+    case x = "X"
     case spotify = "Spotify"
     case appleMusic = "Apple Music"
     case jioSaavn = "JioSaavn"
@@ -22,6 +23,8 @@ public enum MediaService: String, CaseIterable, Sendable {
     /// Vibrant brand colors matching the streaming service's official logo
     public var brandColor: Color {
         switch self {
+        case .x:
+            return Color.white // X Monochrome White
         case .youtube, .youtubeMusic:
             return Color(red: 1.0, green: 0.0, blue: 0.0) // Pure YouTube Red #FF0000
         case .netflix:
@@ -49,6 +52,42 @@ public enum MediaService: String, CaseIterable, Sendable {
         }
     }
     
+    /// Common URL domain substrings associated with this streaming service
+    public var domainKeywords: [String] {
+        switch self {
+        case .youtubeMusic:
+            return ["music.youtube.com"]
+        case .youtube:
+            return ["youtube.com", "youtu.be"]
+        case .x:
+            return ["x.com", "twitter.com"]
+        case .spotify:
+            return ["open.spotify.com", "spotify.com"]
+        case .netflix:
+            return ["netflix.com"]
+        case .primeVideo:
+            return ["primevideo.com", "amazon.com/gp/video"]
+        case .amazonMusic:
+            return ["music.amazon"]
+        case .appleMusic:
+            return ["music.apple.com"]
+        case .jioSaavn:
+            return ["jiosaavn.com"]
+        case .gaana:
+            return ["gaana.com"]
+        case .disneyPlus:
+            return ["disneyplus.com", "hotstar.com"]
+        case .soundcloud:
+            return ["soundcloud.com"]
+        case .twitch:
+            return ["twitch.tv"]
+        case .appleTV:
+            return ["tv.apple.com"]
+        case .generic:
+            return []
+        }
+    }
+    
     /// Known browser bundle identifiers on macOS
     public static let browserBundleIds: Set<String> = [
         "com.brave.Browser",
@@ -69,81 +108,130 @@ public enum MediaService: String, CaseIterable, Sendable {
         artist: String = "",
         bundleId: String? = nil,
         appName: String = ""
-    ) -> (service: MediaService, cleanedTitle: String) {
+    ) -> (service: MediaService, cleanedTitle: String, extractedAuthor: String?) {
         let combined = "\(title) \(album) \(artist) \(appName)".lowercased()
         let isBrowser = bundleId.map { browserBundleIds.contains($0) } ?? false
+        
+        // 0. X (Twitter)
+        if combined.contains("on x: ") || combined.contains(" / x") || combined.contains("on twitter: ") || combined.contains(" / twitter") || combined.contains("x.com") || combined.contains("twitter.com") {
+            let (clean, author) = cleanXTitle(title)
+            return (.x, clean, author)
+        }
         
         // 1. Prime Video
         if combined.contains("prime video") || combined.contains("amazon prime") || combined.contains("primevideo") {
             let clean = cleanPrefix(title, prefix: "Prime Video: ")
-            return (.primeVideo, clean)
+            return (.primeVideo, clean, nil)
         }
         
         // 2. Netflix
         if combined.contains("netflix") {
             let clean = cleanPrefix(title, prefix: "Netflix: ")
-            return (.netflix, clean)
+            return (.netflix, clean, nil)
         }
         
         // 3. YouTube Music
         if combined.contains("youtube music") || combined.contains("music.youtube") {
             let clean = cleanPrefix(title, prefix: "YouTube Music: ")
-            return (.youtubeMusic, clean)
+            return (.youtubeMusic, clean, nil)
         }
         
-        // 4. YouTube (videos, channels, handles)
-        if combined.contains("youtube") || combined.contains("@") || combined.contains("youtu.be") {
+        // 4. YouTube (videos, channels)
+        if combined.contains("youtube") || combined.contains("youtu.be") {
             let clean = cleanPrefix(title, prefix: "YouTube: ")
-            return (.youtube, clean)
+            return (.youtube, clean, nil)
         }
         
         // 5. Spotify
         if combined.contains("spotify") || bundleId == "com.spotify.client" {
-            return (.spotify, title)
+            return (.spotify, title, nil)
         }
         
         // 6. Apple Music
         if combined.contains("apple music") || bundleId == "com.apple.Music" {
-            return (.appleMusic, title)
+            return (.appleMusic, title, nil)
         }
         
         // 7. JioSaavn
         if combined.contains("jiosaavn") || combined.contains("saavn") {
-            return (.jioSaavn, title)
+            return (.jioSaavn, title, nil)
         }
         
         // 8. Gaana
         if combined.contains("gaana") {
-            return (.gaana, title)
+            return (.gaana, title, nil)
         }
         
         // 9. Disney+
         if combined.contains("disney+") || combined.contains("disneyplus") || combined.contains("hotstar") {
-            return (.disneyPlus, title)
+            return (.disneyPlus, title, nil)
         }
         
         // 10. SoundCloud
         if combined.contains("soundcloud") {
-            return (.soundcloud, title)
+            return (.soundcloud, title, nil)
         }
         
         // 11. Twitch
         if combined.contains("twitch") {
-            return (.twitch, title)
+            return (.twitch, title, nil)
         }
         
         // Fallback for native apps
         if !isBrowser {
             if appName.contains("Music") {
-                return (.appleMusic, title)
+                return (.appleMusic, title, nil)
             } else if appName.contains("Spotify") {
-                return (.spotify, title)
+                return (.spotify, title, nil)
             } else if appName.contains("TV") {
-                return (.appleTV, title)
+                return (.appleTV, title, nil)
             }
         }
         
-        return (.generic, title)
+        return (.generic, title, nil)
+    }
+    
+    public static func cleanXTitle(_ raw: String) -> (title: String, author: String?) {
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Strip trailing " / X" or " / Twitter"
+        if text.hasSuffix(" / X") {
+            text = String(text.dropLast(4))
+        } else if text.hasSuffix(" / Twitter") {
+            text = String(text.dropLast(10))
+        }
+        
+        // Strip leading notification badge e.g. "(1) ", "(99+) "
+        if text.hasPrefix("(") {
+            if let closeParen = text.firstIndex(of: ")") {
+                let afterParen = text.index(after: closeParen)
+                let remainder = text[afterParen...].trimmingCharacters(in: .whitespaces)
+                text = remainder
+            }
+        }
+        
+        // Regex for: [Author] on X: "[Tweet]" or [Author] on Twitter: "[Tweet]"
+        let pattern = #"^(.*?)\s+on\s+(?:X|Twitter):\s*["“](.*?)["”]?$"#
+        if let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) {
+            let nsString = text as NSString
+            if let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: nsString.length)) {
+                let author = nsString.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
+                var tweet = nsString.substring(with: match.range(at: 2)).trimmingCharacters(in: .whitespaces)
+                
+                // Strip trailing t.co links e.g. https://t.co/KyVUhyQSXn
+                if let linkRegex = try? NSRegularExpression(pattern: #"https://t\.co/\S+$"#) {
+                    tweet = linkRegex.stringByReplacingMatches(in: tweet, range: NSRange(location: 0, length: (tweet as NSString).length), withTemplate: "").trimmingCharacters(in: .whitespaces)
+                }
+                
+                if !tweet.isEmpty {
+                    return (tweet, author.isEmpty ? nil : author)
+                } else if !author.isEmpty {
+                    return (author, nil)
+                }
+            }
+        }
+        
+        return (text, nil)
     }
     
     private static func cleanPrefix(_ title: String, prefix: String) -> String {

@@ -24,5 +24,7 @@
     <string>14.0</string>
     <key>NSAppleEventsUsageDescription</key>
     <string>Mac Island requires Apple Events to detect streaming services and active media player names.</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Mac Island requires Accessibility permissions to intercept volume and brightness keys and suppress native system HUD overlays.</string>
 </dict>
 </plist>

@@ -38,13 +38,8 @@ public struct LyricsDisplayView: View {
                     .foregroundColor(Color.islandTextPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .id(line.text)
-                    .transition(
-                        .asymmetric(
-                            insertion: .opacity.combined(with: .offset(y: 3)),
-                            removal: .opacity.combined(with: .offset(y: -3))
-                        )
-                    )
+                    .id("\(line.id.uuidString)-\(line.text)")
+                    .transition(.lyricBlurSlide)
             } else if lyricsManager.hasLyrics {
                 // Musical intro or instrumental interlude before line begins
                 HStack(spacing: 3) {
@@ -60,7 +55,8 @@ public struct LyricsDisplayView: View {
             }
         }
         .frame(maxWidth: 170, alignment: .trailing)
-        .animation(.easeInOut(duration: 0.22), value: lyricsManager.currentLine?.text)
-        .animation(.easeInOut(duration: 0.2), value: lyricsManager.isLoading)
+        .animation(IslandAnimation.lyricsSpring, value: lyricsManager.currentLine?.id)
+        .animation(IslandAnimation.lyricsSpring, value: lyricsManager.currentLine?.text)
+        .animation(IslandAnimation.snappySpring, value: lyricsManager.isLoading)
     }
 }
