@@ -51,23 +51,23 @@ public final class WindowManager: ObservableObject {
         return 28.0
     }
     
-    /// Expanded width: balanced with generous 20pt internal margins (356pt)
-    public let expandedWidth: CGFloat = 356
+    /// Expanded width: balanced with generous 22pt internal side margins (364pt)
+    public let expandedWidth: CGFloat = 364
     
-    /// Expanded height: compact and comfortable with generous vertical padding (132pt)
+    /// Expanded height: comfortable breathing room with 14pt notch clearance (144pt)
     public var expandedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 104
+            return screen.notchHeight + 116
         }
-        return 130
+        return 140
     }
     
-    /// Top padding for expanded content so everything sits cleanly below the camera notch
+    /// Top padding for expanded content so everything sits 14pt cleanly below the camera notch
     public var expandedTopPadding: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 6
+            return screen.notchHeight + 14
         }
-        return 12
+        return 16
     }
     
     private var collapseDebounceTimer: Timer?

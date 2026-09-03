@@ -4,7 +4,8 @@ import AppKit
 // MARK: - ExpandedIslandView
 // The rich, interactive floating card revealed when hovering over Mac Island.
 // Refined Apple Dynamic Island aesthetic:
-// - Generous 20pt padding around all content for comfortable, premium breathing room
+// - Generous 22pt padding around all content for comfortable, premium breathing room
+// - Symmetrical optical alignment: Equalizer pulse is vertically centered with the header artwork
 // - Sleek, proportional title typography (12.5pt semibold) preventing loud/oversized text
 // - 34x34 brand artwork with continuous rounded corners
 // - 4-bar delicate hairline animated equalizer waveform
@@ -21,14 +22,15 @@ public struct ExpandedIslandView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 11) {
             if let item = mediaManager.currentItem {
                 let isPlaying = mediaManager.playbackState.isPlaying
                 let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
                 
                 // Top section: Service/Album Artwork + Track Details + Waveform Indicator
+                // Locked to a 34pt height row so Artwork, Text, and Equalizer share the exact same optical centerline
                 HStack(alignment: .center, spacing: 11) {
-                    ArtworkImageView(item: item, size: 34, cornerRadius: 7.5)
+                    ArtworkImageView(item: item, size: 34, cornerRadius: 8)
                         .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                     
                     VStack(alignment: .leading, spacing: 2) {
@@ -47,18 +49,20 @@ public struct ExpandedIslandView: View {
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity)
                     
-                    Spacer(minLength: 4)
-                    
-                    // Waveform Audio Equalizer on the top-right matching the brand icon color
+                    // Waveform Audio Equalizer on the top-right:
+                    // Perfectly centered vertically on the 34pt header axis and aligned with scrubber
                     AudioWaveformIndicator(
                         isPlaying: isPlaying,
                         color: pulseColor
                     )
                     .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                    .frame(width: 22, height: 22, alignment: .trailing)
                     .animation(.easeInOut(duration: 0.25), value: isPlaying)
                 }
+                .frame(height: 34)
                 
                 // Middle section: Scannable horizontal progress bar with timestamps
                 PlaybackProgressSlider(
@@ -96,8 +100,8 @@ public struct ExpandedIslandView: View {
                 .padding(.vertical, 6)
             }
         }
-        .padding(.horizontal, 20) // Generous 20pt horizontal padding around content
+        .padding(.horizontal, 22) // Generous 22pt horizontal padding around content
         .padding(.top, windowManager.expandedTopPadding)
-        .padding(.bottom, 13) // Comfortable bottom breathing room
+        .padding(.bottom, 15) // Comfortable bottom breathing room
     }
 }
