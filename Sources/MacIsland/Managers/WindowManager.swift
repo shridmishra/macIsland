@@ -34,7 +34,6 @@ public final class WindowManager: ObservableObject {
     
     /// Dynamic collapsed width:
     /// Left wing (44pt) + Notch (156pt) + Right wing (44pt) = 244pt
-    /// Ensures 11pt padding on both sides of the 16pt icon for perfect optical centering!
     public var collapsedWidth: CGFloat {
         let hasMedia = MediaManager.shared.currentItem != nil
         if let screen = targetScreen, screen.hasNotch {
@@ -52,22 +51,21 @@ public final class WindowManager: ObservableObject {
         return 28.0
     }
     
-    /// Expanded width for generous horizontal layout
-    public let expandedWidth: CGFloat = 390
+    /// Expanded width matching reference card
+    public let expandedWidth: CGFloat = 384
     
-    /// Expanded height:
-    /// Encompasses the notch area at the top and provides balanced space for media controls below.
+    /// Expanded height matching reference card
     public var expandedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 148
+            return screen.notchHeight + 126
         }
-        return 150
+        return 152
     }
     
     /// Top padding for expanded content so everything sits cleanly below the camera notch
     public var expandedTopPadding: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 8
+            return screen.notchHeight + 6
         }
         return 14
     }

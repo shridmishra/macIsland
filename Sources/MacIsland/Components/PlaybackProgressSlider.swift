@@ -1,8 +1,8 @@
 import SwiftUI
 
 // MARK: - PlaybackProgressSlider
-// Scannable, elegant playback progress bar matching Apple macOS styling.
-// Displays the elapsed time, horizontal progress capsule, and total duration.
+// Scannable, elegant playback progress bar matching Apple Dynamic Island styling:
+// [Current Time]  [==== Progress Bar ====]  [-Remaining Time]
 public struct PlaybackProgressSlider: View {
     public let progress: Double
     public let currentTimeString: String
@@ -14,48 +14,37 @@ public struct PlaybackProgressSlider: View {
         self.remainingTimeString = remainingTimeString
     }
     
-    public init(progress: Double, currentTimeString: String, durationString: String) {
-        self.progress = progress
-        self.currentTimeString = currentTimeString
-        self.remainingTimeString = durationString
-    }
-    
     public var body: some View {
         HStack(spacing: 8) {
-            // Elapsed time indicator (e.g. "0:54")
+            // Elapsed time indicator
             Text(currentTimeString)
-                .font(.system(size: 11.5, weight: .regular))
-                .monospacedDigit()
-                .foregroundColor(Color.islandScrubberMuted)
-                .frame(minWidth: 28, alignment: .leading)
+                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .foregroundColor(Color.white.opacity(0.68))
+                .lineLimit(1)
             
-            // Scrubber capsule bar
+            // Horizontal progress capsule
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     // Track background
                     Capsule()
-                        .fill(Color.islandProgressTrack)
-                        .frame(height: 4.5)
+                        .fill(Color.white.opacity(0.20))
+                        .frame(height: 3.5)
                     
                     // Filled active progress
                     Capsule()
-                        .fill(Color.islandScrubberFill)
-                        .frame(
-                            width: max(0, min(geo.size.width * CGFloat(progress), geo.size.width)),
-                            height: 4.5
-                        )
+                        .fill(Color.white)
+                        .frame(width: max(0, min(geo.size.width * CGFloat(progress), geo.size.width)), height: 3.5)
                 }
-                .frame(maxHeight: .infinity, alignment: .center)
+                .frame(height: 3.5)
+                .offset(y: (geo.size.height - 3.5) / 2.0)
             }
-            .frame(height: 4.5)
+            .frame(height: 14)
             
-            // Remaining time indicator (e.g. "-3:15")
+            // Remaining time indicator (e.g. -1:15:05)
             Text(remainingTimeString)
-                .font(.system(size: 11.5, weight: .regular))
-                .monospacedDigit()
-                .foregroundColor(Color.islandScrubberMuted)
-                .frame(minWidth: 32, alignment: .trailing)
+                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .foregroundColor(Color.white.opacity(0.68))
+                .lineLimit(1)
         }
-        .frame(height: 14)
     }
 }

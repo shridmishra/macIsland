@@ -42,10 +42,13 @@ public final class MediaManager: ObservableObject {
         self.currentItem = item
         if let item = item {
             self.playbackState = item.isPlaying ? .playing : .paused
+            let progress = item.currentProgress()
             self.interpolatedProgress = item.progressFraction()
-            self.formattedCurrentTime = MediaItem.formatTime(item.currentProgress())
+            self.formattedCurrentTime = MediaItem.formatTime(progress)
             self.formattedDuration = MediaItem.formatTime(item.duration)
-            self.formattedRemainingTime = Self.formatRemainingTime(current: item.currentProgress(), total: item.duration)
+            
+            let remaining = max(0, item.duration - progress)
+            self.formattedRemainingTime = item.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
             
             // Asynchronously resolve specific media streaming service if playing inside a browser
             if item.isBrowserMedia && item.service == .generic {
@@ -89,12 +92,6 @@ public final class MediaManager: ObservableObject {
         }
     }
     
-    private static func formatRemainingTime(current: TimeInterval, total: TimeInterval) -> String {
-        guard total > 0 else { return "-0:00" }
-        let remaining = max(0, total - current)
-        return "-" + MediaItem.formatTime(remaining)
-    }
-    
     private func startProgressTicker() {
         // Run ticker every 0.5 seconds to advance the progress bar smoothly in all run loop modes
         let ticker = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
@@ -103,7 +100,8 @@ public final class MediaManager: ObservableObject {
                 let progress = item.currentProgress()
                 self.interpolatedProgress = item.progressFraction()
                 self.formattedCurrentTime = MediaItem.formatTime(progress)
-                self.formattedRemainingTime = Self.formatRemainingTime(current: progress, total: item.duration)
+                let remaining = max(0, item.duration - progress)
+                self.formattedRemainingTime = item.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
             }
         }
         RunLoop.main.add(ticker, forMode: .common)
