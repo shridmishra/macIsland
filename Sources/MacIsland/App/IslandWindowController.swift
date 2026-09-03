@@ -4,12 +4,17 @@ import Combine
 
 // MARK: - IslandWindowController
 // Manages the lifecycle, positioning, screen adaptation, and frame animations of IslandPanel.
+// Dynamically resizes and centers the window when:
+// 1. Media starts/stops playing (wings sprout from the notch)
+// 2. The user hovers/collapses the island (smooth spring expansion/collapse)
+// 3. Display geometry changes (external monitors connected/disconnected)
 @MainActor
 public final class IslandWindowController: NSObject, ObservableObject {
     public static let shared = IslandWindowController()
     
     public private(set) var panel: IslandPanel?
     private var windowManager = WindowManager.shared
+    private var mediaManager = MediaManager.shared
     private var cancellables = Set<AnyCancellable>()
     
     override private init() {
@@ -36,7 +41,7 @@ public final class IslandWindowController: NSObject, ObservableObject {
         // Host the SwiftUI IslandContainerView inside AppKit
         let rootView = IslandContainerView(
             windowManager: windowManager,
-            mediaManager: MediaManager.shared
+            mediaManager: mediaManager
         )
         let hostingView = IslandHostingView(rootView: rootView)
         hostingView.frame = NSRect(origin: .zero, size: initialFrame.size)
@@ -46,12 +51,21 @@ public final class IslandWindowController: NSObject, ObservableObject {
         newPanel.setFrame(initialFrame, display: true)
         self.panel = newPanel
         
-        // Listen to island state changes (collapsed <-> expanded)
+        // 1. Listen to island state changes (collapsed <-> expanded)
         windowManager.onStateChanged = { [weak self] newState in
             self?.updateWindowFrame(for: newState)
         }
         
-        // Listen for screen resolution and display configuration changes
+        // 2. Listen to media changes (dynamically adapt collapsed wing width)
+        mediaManager.$currentItem
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self, self.windowManager.islandState == .collapsed else { return }
+                self.updateWindowFrame(for: .collapsed)
+            }
+            .store(in: &cancellables)
+        
+        // 3. Listen for screen resolution and display configuration changes
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .sink { [weak self] _ in
                 self?.recenterOnScreen()
@@ -65,7 +79,7 @@ public final class IslandWindowController: NSObject, ObservableObject {
         
         // Use AppKit animation context for smooth window frame transition
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.28
+            context.duration = 0.32
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             panel.animator().setFrame(targetFrame, display: true)
         }

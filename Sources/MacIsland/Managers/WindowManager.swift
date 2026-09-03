@@ -3,9 +3,10 @@ import SwiftUI
 import Combine
 
 // MARK: - WindowManager
-// Manages the state, dimensions, animations, and hover transitions for the Island window.
-// Ensures that hovering triggers instant smooth expansion while mouse exit uses a short
-// debounce (hysteresis) to prevent accidental collapse when reaching for playback controls.
+// Manages window geometry, screen metrics, notch adaptation, and hover transitions.
+// Guarantees that on notched MacBooks, NO content is ever placed behind the physical camera cutout:
+// - In collapsed mode: Information is placed strictly in the side "wings" (left & right of the cutout).
+// - In expanded mode: All interactive UI sits completely below the cutout.
 @MainActor
 public final class WindowManager: ObservableObject {
     public static let shared = WindowManager()
@@ -13,34 +14,63 @@ public final class WindowManager: ObservableObject {
     @Published public private(set) var islandState: IslandState = .collapsed
     @Published public private(set) var isHovered: Bool = false
     
-    // MARK: - Dimensions tuned for Apple Dynamic Island aesthetics
+    /// Target screen where Mac Island is currently docked
+    public var targetScreen: NSScreen? {
+        NSScreen.main ?? NSScreen.screens.first
+    }
     
-    /// Dynamic collapsed width adapting to whether media is playing and screen notch geometry
+    public var hasNotch: Bool {
+        targetScreen?.hasNotch ?? false
+    }
+    
+    public var notchWidth: CGFloat {
+        targetScreen?.notchWidth ?? 0
+    }
+    
+    public var notchHeight: CGFloat {
+        targetScreen?.notchHeight ?? 0
+    }
+    
+    // MARK: - Notch-Safe Dimensions
+    
+    /// Dynamic collapsed width:
+    /// On notched displays, spans across the notch so content sits in the side wings.
     public var collapsedWidth: CGFloat {
         let hasMedia = MediaManager.shared.currentItem != nil
         if let screen = targetScreen, screen.hasNotch {
-            return hasMedia ? max(screen.notchWidth + 64, 256) : max(screen.notchWidth + 24, 210)
+            // Symmetrical wings on both sides of the hardware cutout:
+            // ~120pt left wing + notchWidth + ~120pt right wing
+            return hasMedia ? (screen.notchWidth + 240) : (screen.notchWidth + 60)
         }
         return hasMedia ? 240 : 180
     }
     
-    /// Height of the collapsed pill (matches MacBook notch height)
+    /// Height of the collapsed pill (matches or slightly exceeds notch height)
     public var collapsedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return max(screen.notchHeight + 2, 34)
+            return max(screen.notchHeight + 4, 34)
         }
         return 34
     }
     
-    /// Generous width for expanded card so titles and controls breathe comfortably
-    public let expandedWidth: CGFloat = 416
+    /// Width for the expanded card
+    public let expandedWidth: CGFloat = 420
     
-    /// Height for expanded card giving balanced optical rhythm between artwork, slider & controls
-    public let expandedHeight: CGFloat = 152
+    /// Height for the expanded card:
+    /// On notched displays, extends downward to provide ample room below the hardware notch.
+    public var expandedHeight: CGFloat {
+        if let screen = targetScreen, screen.hasNotch {
+            return screen.notchHeight + 156
+        }
+        return 152
+    }
     
-    /// Target screen where Mac Island is currently docked
-    public var targetScreen: NSScreen? {
-        NSScreen.main ?? NSScreen.screens.first
+    /// Top padding for expanded content so everything is 100% outside and below the cutout
+    public var expandedTopPadding: CGFloat {
+        if let screen = targetScreen, screen.hasNotch {
+            return screen.notchHeight + 6
+        }
+        return 14
     }
     
     private var collapseDebounceTimer: Timer?

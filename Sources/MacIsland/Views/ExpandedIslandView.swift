@@ -3,9 +3,10 @@ import AppKit
 
 // MARK: - ExpandedIslandView
 // The rich, interactive floating card revealed when the user hovers over Mac Island.
-// Shows album artwork, song title, artist, application source badge, playback progress, and controls.
+// On notched displays, all content starts below the notch cutout so nothing is obscured.
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
+    @ObservedObject private var windowManager = WindowManager.shared
     
     public init(mediaManager: MediaManager) {
         self.mediaManager = mediaManager
@@ -14,7 +15,8 @@ public struct ExpandedIslandView: View {
     public var body: some View {
         VStack(spacing: 11) {
             if let item = mediaManager.currentItem {
-                // Top section: Artwork + Track details + App Badge + Collapse
+                // Top section: Artwork + Track details + App Badge + Collapse button
+                // Positioned safely below the hardware notch
                 HStack(alignment: .top, spacing: 14) {
                     ArtworkImageView(artworkData: item.artworkData, size: 56, cornerRadius: 12)
                     
@@ -100,7 +102,7 @@ public struct ExpandedIslandView: View {
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 8)
                     
                     Button(action: {
                         WindowManager.shared.collapse()
@@ -118,6 +120,7 @@ public struct ExpandedIslandView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.top, windowManager.expandedTopPadding)
+        .padding(.bottom, 14)
     }
 }
