@@ -1,11 +1,12 @@
+import Foundation
 import AppKit
-import SwiftUI
 import Combine
 
 // MARK: - WindowManager
-// Manages window geometry, screen metrics, notch adaptation, and hover transitions.
-// Pinned to the top edge of the display with pure pitch-black background (#000000)
-// with pixel-perfect symmetrical padding and optical centering around the camera notch.
+// Central manager for the Island's screen placement, notch geometry, and expanded dimensions.
+// Provides precise notch-flush positioning and generous, comfortable padding around content:
+// - Reduced top padding: pulls content comfortably closer below the notch cutout
+// - Added left, right, and bottom padding for spacious, premium breathing room
 @MainActor
 public final class WindowManager: ObservableObject {
     public static let shared = WindowManager()
@@ -51,23 +52,23 @@ public final class WindowManager: ObservableObject {
         return 28.0
     }
     
-    /// Expanded width: balanced with generous 22pt internal side margins (364pt)
-    public let expandedWidth: CGFloat = 364
+    /// Expanded width: generous 25pt side margins for spacious, comfortable layout (374pt)
+    public let expandedWidth: CGFloat = 374
     
-    /// Expanded height: comfortable breathing room with 14pt notch clearance (144pt)
+    /// Expanded height: calibrated with reduced top padding and increased bottom clearance (152pt)
     public var expandedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 116
+            return screen.notchHeight + 124
         }
-        return 140
+        return 150
     }
     
-    /// Top padding for expanded content so everything sits 14pt cleanly below the camera notch
+    /// Reduced top padding: content sits 6pt cleanly below the camera notch without excessive empty space
     public var expandedTopPadding: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
-            return screen.notchHeight + 14
+            return screen.notchHeight + 6
         }
-        return 16
+        return 12
     }
     
     private var collapseDebounceTimer: Timer?
@@ -98,8 +99,6 @@ public final class WindowManager: ObservableObject {
     }
     
     public func expand() {
-        collapseDebounceTimer?.invalidate()
-        collapseDebounceTimer = nil
         islandState = .expanded
         onStateChanged?(.expanded)
     }
@@ -110,25 +109,21 @@ public final class WindowManager: ObservableObject {
     }
     
     public func toggle() {
-        if islandState == .expanded {
+        if islandState.isExpanded {
             collapse()
         } else {
             expand()
         }
     }
     
-    /// Computes the exact screen frame in AppKit coordinates (bottom-left origin).
-    /// Both collapsed and expanded are pinned directly to the top edge (Y = top - height)
-    /// so the black background merges seamlessly with the physical notch.
+    /// Calculates the origin and dimensions of the panel anchored to the top of the display
     public func windowFrame(for state: IslandState, on screen: NSScreen) -> NSRect {
-        let width = state.isExpanded ? expandedWidth : collapsedWidth
-        let height = state.isExpanded ? expandedHeight : collapsedHeight
+        let screenFrame = screen.frame
+        let width = expandedWidth
+        let height = expandedHeight
         
-        // Center horizontally on display
-        let x = screen.frame.origin.x + (screen.frame.width - width) / 2.0
-        
-        // Pinned to the very top edge of the display
-        let y = screen.frame.origin.y + screen.frame.height - height
+        let x = screenFrame.origin.x + (screenFrame.width - width) / 2.0
+        let y = screenFrame.origin.y + screenFrame.height - height
         
         return NSRect(x: x, y: y, width: width, height: height)
     }

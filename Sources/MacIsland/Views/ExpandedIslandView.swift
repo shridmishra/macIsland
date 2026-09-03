@@ -20,7 +20,7 @@ public struct ExpandedIslandView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 11) {
+        VStack(spacing: 12) {
             if let item = mediaManager.currentItem {
                 let isPlaying = mediaManager.playbackState.isPlaying
                 let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
@@ -98,8 +98,8 @@ public struct ExpandedIslandView: View {
                 .padding(.vertical, 6)
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 25)
         .padding(.top, windowManager.expandedTopPadding)
-        .padding(.bottom, 14)
+        .padding(.bottom, 20)
     }
 }
