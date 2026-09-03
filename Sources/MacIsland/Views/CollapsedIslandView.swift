@@ -2,8 +2,8 @@ import SwiftUI
 
 // MARK: - CollapsedIslandView
 // The minimal resting state of Mac Island.
-// On notched displays, renders two independent transparent glass wings flanking the cutout.
-// Backed by NSVisualEffectView for true hardware GPU behind-window glass blur.
+// On notched displays, compact wings flank the physical cutout at the exact 28pt height of the notch.
+// The pure black background seamlessly merges the physical cutout and the digital island into one.
 public struct CollapsedIslandView: View {
     public let item: MediaItem?
     public let isPlaying: Bool
@@ -29,12 +29,11 @@ public struct CollapsedIslandView: View {
         }
     }
     
-    // MARK: - Notched Display: Two Independent Transparent Glass Wings
-    // [Left Glass Wing] <--- 100% Clear Notch Space ---> [Right Glass Wing]
+    // MARK: - Notched Display Wing Layout (Left Wing | Hardware Notch | Right Wing)
     private var notchWingLayout: some View {
         HStack(spacing: 0) {
-            // LEFT WING: Mini artwork inside independent transparent glass pill
-            ZStack {
+            // LEFT WING: Outside the notch on the left
+            HStack(spacing: 0) {
                 if let item = item {
                     ArtworkImageView(artworkData: item.artworkData, size: 18, cornerRadius: 4.5)
                 } else {
@@ -43,16 +42,15 @@ public struct CollapsedIslandView: View {
                         .foregroundColor(Color.islandTextSecondary)
                 }
             }
-            .frame(width: 36, height: windowManager.collapsedHeight)
-            .transparentGlass(cornerRadius: 10, material: .hudWindow)
-            .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 1.5)
+            .frame(width: 38, height: windowManager.collapsedHeight)
             
-            // CENTER: Physical camera cutout gap (100% transparent, ZERO pixels drawn)
+            // CENTER: Physical camera cutout zone
+            // Empty space where the physical hardware notch sits
             Color.clear
                 .frame(width: windowManager.notchWidth)
             
-            // RIGHT WING: Mini audio equalizer inside independent transparent glass pill
-            ZStack {
+            // RIGHT WING: Outside the notch on the right
+            HStack(spacing: 0) {
                 if isPlaying {
                     AudioWaveformIndicator(isPlaying: true)
                 } else if item != nil {
@@ -65,9 +63,7 @@ public struct CollapsedIslandView: View {
                         .frame(width: 4.5, height: 4.5)
                 }
             }
-            .frame(width: 36, height: windowManager.collapsedHeight)
-            .transparentGlass(cornerRadius: 10, material: .hudWindow)
-            .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 1.5)
+            .frame(width: 38, height: windowManager.collapsedHeight)
         }
     }
     
@@ -96,8 +92,5 @@ public struct CollapsedIslandView: View {
             }
         }
         .padding(.horizontal, 10)
-        .frame(height: windowManager.collapsedHeight)
-        .transparentGlass(cornerRadius: 12, material: .hudWindow)
-        .shadow(color: Color.black.opacity(0.18), radius: 4, x: 0, y: 1.5)
     }
 }

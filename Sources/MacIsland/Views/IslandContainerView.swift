@@ -2,7 +2,8 @@ import SwiftUI
 
 // MARK: - IslandContainerView
 // The root SwiftUI view of the Island.
-// Backed by NSVisualEffectView for authentic macOS WindowServer GPU glass blur.
+// Renders the pure pitch-black Dynamic Island container that merges seamlessly
+// with the physical MacBook camera cutout.
 @MainActor
 public struct IslandContainerView: View {
     @ObservedObject var windowManager: WindowManager
@@ -22,13 +23,12 @@ public struct IslandContainerView: View {
     
     public var body: some View {
         let isExpanded = windowManager.islandState.isExpanded
+        // Collapsed radius matches the physical MacBook notch bottom curvature (12pt)
+        let cornerRadius: CGFloat = isExpanded ? 22 : 12
         
         ZStack {
             if isExpanded {
                 ExpandedIslandView(mediaManager: mediaManager)
-                    .transparentGlass(cornerRadius: 18, material: .hudWindow)
-                    .shadow(color: Color.black.opacity(0.28), radius: 18, x: 0, y: 8)
-                    .shadow(color: Color.black.opacity(0.15), radius: 5, x: 0, y: 2)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
             } else {
                 CollapsedIslandView(
@@ -42,9 +42,20 @@ public struct IslandContainerView: View {
             width: isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth,
             height: isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
         )
+        // Pure pitch-black background to merge seamlessly with the physical camera notch
+        .background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.black)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(LinearGradient.islandRimBorder, lineWidth: 0.75)
+        )
+        .shadow(color: Color.black.opacity(0.55), radius: isExpanded ? 18 : 6, x: 0, y: isExpanded ? 8 : 2)
         .onHover { hovering in
             windowManager.setHovered(hovering)
         }
-        .animation(.spring(response: 0.34, dampingFraction: 0.82), value: windowManager.islandState)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: windowManager.islandState)
     }
 }

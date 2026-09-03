@@ -3,9 +3,11 @@ import AppKit
 
 // MARK: - ExpandedIslandView
 // The rich, interactive floating card revealed when hovering over Mac Island.
-// Precision-designed with compact vertical rhythm, Apple-grade typography, and balanced spacing.
+// On notched displays, top padding ensures the pure black background seamlessly hugs
+// the hardware notch while keeping all controls in the clear, visible area below it.
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
+    @ObservedObject private var windowManager = WindowManager.shared
     
     public init(mediaManager: MediaManager) {
         self.mediaManager = mediaManager
@@ -117,6 +119,7 @@ public struct ExpandedIslandView: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 11)
+        .padding(.top, windowManager.expandedTopPadding)
+        .padding(.bottom, 12)
     }
 }

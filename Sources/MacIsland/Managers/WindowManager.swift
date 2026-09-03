@@ -4,8 +4,8 @@ import Combine
 
 // MARK: - WindowManager
 // Manages window geometry, screen metrics, notch adaptation, and hover transitions.
-// - Collapsed: Sits flush in the menu bar as two independent transparent glass wings flanking the notch.
-// - Expanded: Floats elegantly directly below the notch/menu bar as a compact, translucent liquid glass card.
+// Pinned to the top edge of the display with pure pitch-black background (#000000)
+// so the island merges seamlessly with the physical camera cutout.
 @MainActor
 public final class WindowManager: ObservableObject {
     public static let shared = WindowManager()
@@ -30,21 +30,21 @@ public final class WindowManager: ObservableObject {
         targetScreen?.notchHeight ?? 0
     }
     
-    // MARK: - Precision Hardware & Popover Dimensions
+    // MARK: - Cutout-Merged Dimensions
     
     /// Dynamic collapsed width:
-    /// Hugs the hardware notch closely with compact, subtle wings.
+    /// Seamlessly hugs the hardware notch with compact wings on both sides.
     public var collapsedWidth: CGFloat {
         let hasMedia = MediaManager.shared.currentItem != nil
         if let screen = targetScreen, screen.hasNotch {
-            // Left wing (36pt) + notchWidth (156pt) + Right wing (36pt) = 228pt
-            return hasMedia ? (screen.notchWidth + 72) : (screen.notchWidth + 24)
+            // Left wing (38pt) + notchWidth (156pt) + Right wing (38pt) = 232pt
+            return hasMedia ? (screen.notchWidth + 76) : (screen.notchWidth + 24)
         }
         return hasMedia ? 180 : 130
     }
     
     /// Height of the collapsed pill:
-    /// Precision-matched to the exact hardware cutout height (28pt) so it sits flush in the menu bar.
+    /// Precision-matched to the physical hardware cutout height (28pt) so it merges flush.
     public var collapsedHeight: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
             return screen.notchHeight
@@ -52,11 +52,25 @@ public final class WindowManager: ObservableObject {
         return 28.0
     }
     
-    /// Compact expanded width for sleek floating card (room for titles without truncation)
+    /// Expanded width for generous horizontal layout
     public let expandedWidth: CGFloat = 390
     
-    /// Compact expanded height (tight vertical rhythm without empty voids)
-    public let expandedHeight: CGFloat = 140
+    /// Expanded height:
+    /// Encompasses the notch area at the top and provides balanced space for media controls below.
+    public var expandedHeight: CGFloat {
+        if let screen = targetScreen, screen.hasNotch {
+            return screen.notchHeight + 140
+        }
+        return 144
+    }
+    
+    /// Top padding for expanded content so everything sits cleanly below the camera notch
+    public var expandedTopPadding: CGFloat {
+        if let screen = targetScreen, screen.hasNotch {
+            return screen.notchHeight + 6
+        }
+        return 12
+    }
     
     private var collapseDebounceTimer: Timer?
     public var onStateChanged: ((IslandState) -> Void)?
@@ -106,8 +120,8 @@ public final class WindowManager: ObservableObject {
     }
     
     /// Computes the exact screen frame in AppKit coordinates (bottom-left origin).
-    /// - Collapsed: Pinned flush to the top edge (Y = top - collapsedHeight) inside the menu bar.
-    /// - Expanded: Floats directly below the menu bar / notch (Y = top - menuBarHeight - expandedHeight - 4).
+    /// Both collapsed and expanded are pinned directly to the top edge (Y = top - height)
+    /// so the black background merges seamlessly with the physical notch.
     public func windowFrame(for state: IslandState, on screen: NSScreen) -> NSRect {
         let width = state.isExpanded ? expandedWidth : collapsedWidth
         let height = state.isExpanded ? expandedHeight : collapsedHeight
@@ -115,16 +129,8 @@ public final class WindowManager: ObservableObject {
         // Center horizontally
         let x = screen.frame.origin.x + (screen.frame.width - width) / 2.0
         
-        let y: CGFloat
-        if state.isExpanded {
-            // Float smoothly 4pt below the menu bar / notch so all 4 glass corners are rounded
-            // and the menu bar is 100% uncovered!
-            let menuHeight = screen.hasNotch ? screen.notchHeight : screen.menuBarHeight
-            y = screen.frame.origin.y + screen.frame.height - menuHeight - height - 4.0
-        } else {
-            // Pinned flush to top edge inside the menu bar
-            y = screen.frame.origin.y + screen.frame.height - height
-        }
+        // Pinned to the very top edge of the display
+        let y = screen.frame.origin.y + screen.frame.height - height
         
         return NSRect(x: x, y: y, width: width, height: height)
     }
