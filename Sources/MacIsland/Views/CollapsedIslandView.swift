@@ -5,7 +5,8 @@ import SwiftUI
 // On notched displays, compact wings flank the physical cutout at the exact 28pt height of the notch.
 // Shows the true streaming service logo icon (Prime Video, Netflix, YouTube, Spotify)
 // with pixel-perfect symmetrical padding and optical centering.
-// Participates in matchedGeometryEffect for seamless, continuous fluid expansion.
+// The right wing waveform pulse dynamically matches the brand icon color (Prime: Blue, Netflix: Red, Spotify: Green),
+// or displays resting bars in muted gray when playback is paused.
 public struct CollapsedIslandView: View {
     public let item: MediaItem?
     public let isPlaying: Bool
@@ -63,16 +64,14 @@ public struct CollapsedIslandView: View {
             // RIGHT WING (44pt): Notch -> [11pt gap] + [Equalizer 16pt] + [11pt gap] + [Flare 6pt]
             HStack(spacing: 0) {
                 ZStack {
-                    if isPlaying {
+                    if let item = item {
+                        let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
                         AudioWaveformIndicator(
-                            isPlaying: true,
-                            color: item?.service.brandColor ?? Color.islandAccent
+                            isPlaying: isPlaying,
+                            color: pulseColor
                         )
                         .matchedGeometryEffect(id: "islandWaveform", in: namespace)
-                    } else if item != nil {
-                        Image(systemName: "pause.fill")
-                            .font(.system(size: 7.5, weight: .bold))
-                            .foregroundColor(Color.islandTextTertiary)
+                        .animation(.easeInOut(duration: 0.25), value: isPlaying)
                     } else {
                         Circle()
                             .fill(Color.islandTextTertiary)
@@ -93,6 +92,7 @@ public struct CollapsedIslandView: View {
     private var standardCenteredLayout: some View {
         HStack(spacing: 7) {
             if let item = item {
+                let pulseColor = isPlaying ? item.service.brandColor : Color.white.opacity(0.35)
                 ArtworkImageView(item: item, size: 16, cornerRadius: 4)
                     .matchedGeometryEffect(id: "islandArtwork", in: namespace)
                 
@@ -105,7 +105,7 @@ public struct CollapsedIslandView: View {
                 
                 AudioWaveformIndicator(
                     isPlaying: isPlaying,
-                    color: item.service.brandColor
+                    color: pulseColor
                 )
                 .matchedGeometryEffect(id: "islandWaveform", in: namespace)
             } else {

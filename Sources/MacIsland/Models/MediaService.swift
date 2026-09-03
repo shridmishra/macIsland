@@ -15,28 +15,29 @@ public enum MediaService: String, CaseIterable, Sendable {
     case appleTV = "Apple TV"
     case generic = "Media"
     
+    /// Vibrant brand colors matching the streaming service's official logo
     public var brandColor: Color {
         switch self {
         case .primeVideo:
-            return Color(red: 0.0, green: 0.66, blue: 0.88) // #00A8E1 Prime Video Cyan Blue
+            return Color(red: 0.0, green: 0.65, blue: 0.95) // Vibrant Prime Video Blue
         case .netflix:
-            return Color(red: 0.89, green: 0.04, blue: 0.08) // #E50914 Netflix Red
+            return Color(red: 0.90, green: 0.06, blue: 0.10) // Netflix Iconic Red
         case .youtube:
-            return Color(red: 1.0, green: 0.0, blue: 0.0) // #FF0000 YouTube Red
+            return Color(red: 1.0, green: 0.0, blue: 0.0) // YouTube Bright Red
         case .spotify:
-            return Color(red: 0.11, green: 0.73, blue: 0.33) // #1DB954 Spotify Green
+            return Color(red: 0.11, green: 0.84, blue: 0.38) // Spotify Electric Green
         case .appleMusic:
-            return Color(red: 0.98, green: 0.14, blue: 0.24) // Apple Music Magenta
+            return Color(red: 0.99, green: 0.24, blue: 0.36) // Apple Music Coral Red
         case .disneyPlus:
-            return Color(red: 0.07, green: 0.25, blue: 0.75) // Disney+ Blue
+            return Color(red: 0.07, green: 0.39, blue: 0.90) // Disney+ Royal Blue
         case .soundcloud:
-            return Color(red: 1.0, green: 0.33, blue: 0.0) // SoundCloud Orange
+            return Color(red: 1.0, green: 0.35, blue: 0.0) // SoundCloud Orange
         case .twitch:
             return Color(red: 0.57, green: 0.27, blue: 1.0) // Twitch Purple
         case .appleTV:
             return Color.white
         case .generic:
-            return Color.islandAccent
+            return Color(red: 0.40, green: 0.70, blue: 1.0) // Default Cool Cyan/Blue
         }
     }
     
@@ -58,107 +59,70 @@ public enum MediaService: String, CaseIterable, Sendable {
         title: String,
         album: String = "",
         artist: String = "",
-        bundleId: String? = nil
+        bundleId: String? = nil,
+        appName: String = ""
     ) -> (service: MediaService, cleanedTitle: String) {
-        let combined = "\(title) \(album) \(artist)".lowercased()
-        let bId = bundleId?.lowercased() ?? ""
+        let combined = "\(title) \(album) \(artist) \(appName)".lowercased()
+        let isBrowser = bundleId.map { browserBundleIds.contains($0) } ?? false
         
         // 1. Prime Video
         if combined.contains("prime video") || combined.contains("amazon prime") || combined.contains("primevideo") {
-            var cleaned = title
-            let patterns = [
-                "^Prime Video:\\s*",
-                "^Watch\\s+",
-                "\\s*-\\s*Prime Video.*$",
-                "\\s*\\|\\s*Prime Video.*$"
-            ]
-            for pattern in patterns {
-                cleaned = cleaned.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
-            }
-            return (.primeVideo, cleaned.isEmpty ? title : cleaned)
+            let clean = cleanPrefix(title, prefix: "Prime Video: ")
+            return (.primeVideo, clean)
         }
         
         // 2. Netflix
         if combined.contains("netflix") {
-            var cleaned = title
-            let patterns = [
-                "^Netflix\\s*-\\s*",
-                "^Netflix:\\s*",
-                "\\s*\\|\\s*Netflix.*$",
-                "\\s*-\\s*Netflix.*$"
-            ]
-            for pattern in patterns {
-                cleaned = cleaned.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
-            }
-            return (.netflix, cleaned.isEmpty ? title : cleaned)
+            let clean = cleanPrefix(title, prefix: "Netflix: ")
+            return (.netflix, clean)
         }
         
-        // 3. YouTube / YouTube Music
+        // 3. YouTube
         if combined.contains("youtube") || combined.contains("youtu.be") {
-            var cleaned = title
-            let patterns = [
-                "\\s*-\\s*YouTube Music.*$",
-                "\\s*-\\s*YouTube.*$",
-                "\\s*\\|\\s*YouTube.*$"
-            ]
-            for pattern in patterns {
-                cleaned = cleaned.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+            var clean = title
+            if let range = clean.range(of: " - YouTube", options: .backwards) {
+                clean.removeSubrange(range)
             }
-            return (.youtube, cleaned.isEmpty ? title : cleaned)
+            return (.youtube, clean)
         }
         
         // 4. Spotify
-        if bId.contains("spotify") || combined.contains("spotify") {
-            var cleaned = title
-            let patterns = [
-                "\\s*-\\s*Spotify.*$",
-                "\\s*•\\s*Spotify.*$"
-            ]
-            for pattern in patterns {
-                cleaned = cleaned.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
-            }
-            return (.spotify, cleaned.isEmpty ? title : cleaned)
+        if bundleId == "com.spotify.client" || (isBrowser && combined.contains("spotify")) {
+            return (.spotify, title)
         }
         
         // 5. Apple Music
-        if bId == "com.apple.music" || combined.contains("apple music") {
+        if bundleId == "com.apple.Music" {
             return (.appleMusic, title)
         }
         
         // 6. Disney+ / Hotstar
         if combined.contains("disney+") || combined.contains("disney plus") || combined.contains("hotstar") {
-            var cleaned = title
-            let patterns = [
-                "\\s*\\|\\s*Disney\\+.*$",
-                "\\s*-\\s*Disney\\+.*$",
-                "\\s*\\|\\s*Hotstar.*$"
-            ]
-            for pattern in patterns {
-                cleaned = cleaned.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
-            }
-            return (.disneyPlus, cleaned.isEmpty ? title : cleaned)
+            return (.disneyPlus, title)
         }
         
         // 7. SoundCloud
         if combined.contains("soundcloud") {
-            var cleaned = title
-            cleaned = cleaned.replacingOccurrences(of: "\\s*on SoundCloud.*$", with: "", options: .regularExpression)
-            cleaned = cleaned.replacingOccurrences(of: "\\s*-\\s*SoundCloud.*$", with: "", options: .regularExpression)
-            return (.soundcloud, cleaned.isEmpty ? title : cleaned)
+            return (.soundcloud, title)
         }
         
         // 8. Twitch
         if combined.contains("twitch") {
-            var cleaned = title
-            cleaned = cleaned.replacingOccurrences(of: "\\s*-\\s*Twitch.*$", with: "", options: .regularExpression)
-            return (.twitch, cleaned.isEmpty ? title : cleaned)
+            return (.twitch, title)
         }
         
         // 9. Apple TV
-        if bId == "com.apple.tv" || combined.contains("apple tv") {
+        if bundleId == "com.apple.TV" {
             return (.appleTV, title)
         }
         
         return (.generic, title)
+    }
+    
+    private static func cleanPrefix(_ string: String, prefix: String) -> String {
+        if string.lowercased().hasPrefix(prefix.lowercased()) {
+            return String(string.dropFirst(prefix.count))
+        }
+        return string
     }
 }
