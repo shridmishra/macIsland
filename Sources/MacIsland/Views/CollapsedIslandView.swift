@@ -47,6 +47,7 @@ public struct CollapsedIslandView: View {
                             .foregroundColor(Color.islandTextSecondary)
                     }
                 }
+                .offset(y: -2) // Nudged upwards for optical balance
                 .frame(maxWidth: .infinity, alignment: .center)
             }
             .frame(width: 44, height: windowManager.collapsedHeight)
@@ -61,7 +62,8 @@ public struct CollapsedIslandView: View {
                     if isPlaying {
                         AudioWaveformIndicator(
                             isPlaying: true,
-                            color: item?.service.brandColor ?? Color.islandAccent
+                            color: item?.service.brandColor ?? Color.islandAccent,
+                            barCount: 4
                         )
                     } else if item != nil {
                         Image(systemName: "pause.fill")
@@ -73,6 +75,7 @@ public struct CollapsedIslandView: View {
                             .frame(width: 4, height: 4)
                     }
                 }
+                .offset(y: -2) // Nudged upwards for optical balance
                 .frame(maxWidth: .infinity, alignment: .center)
                 
                 Spacer()
@@ -97,7 +100,8 @@ public struct CollapsedIslandView: View {
                 
                 AudioWaveformIndicator(
                     isPlaying: isPlaying,
-                    color: item.service.brandColor
+                    color: item.service.brandColor,
+                    barCount: 4
                 )
             } else {
                 Image(systemName: "music.note")
