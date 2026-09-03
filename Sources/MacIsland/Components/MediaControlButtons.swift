@@ -26,13 +26,13 @@ public struct MediaControlButtons: View {
     }
     
     public var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 24) {
             // Previous button
             Button(action: onPrevious) {
                 Image(systemName: "backward.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(Color.islandTextPrimary.opacity(hoverPrevious ? 1.0 : 0.70))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 28, height: 28)
                     .background(hoverPrevious ? Color.islandControlHover : Color.clear)
                     .clipShape(Circle())
             }
@@ -42,13 +42,13 @@ public struct MediaControlButtons: View {
             // Play / Pause prominent button
             Button(action: onTogglePlayPause) {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.black)
-                    .frame(width: 36, height: 36)
-                    .background(Color.white)
+                    .frame(width: 34, height: 34)
+                    .background(Color.white.opacity(0.95))
                     .clipShape(Circle())
                     .scaleEffect(hoverPlayPause ? 1.06 : 1.0)
-                    .shadow(color: Color.black.opacity(0.25), radius: 4, y: 2)
+                    .shadow(color: Color.black.opacity(0.20), radius: 3, y: 1)
             }
             .buttonStyle(.plain)
             .onHover { hoverPlayPause = $0 }
@@ -59,7 +59,7 @@ public struct MediaControlButtons: View {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(Color.islandTextPrimary.opacity(hoverNext ? 1.0 : 0.70))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 28, height: 28)
                     .background(hoverNext ? Color.islandControlHover : Color.clear)
                     .clipShape(Circle())
             }

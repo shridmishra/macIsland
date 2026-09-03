@@ -3,40 +3,38 @@ import AppKit
 
 // MARK: - ExpandedIslandView
 // The rich, interactive floating card revealed when hovering over Mac Island.
-// Precision-padded so all content sits cleanly below the hardware notch cutout.
+// Precision-designed with compact vertical rhythm, Apple-grade typography, and balanced spacing.
 public struct ExpandedIslandView: View {
     @ObservedObject var mediaManager: MediaManager
-    @ObservedObject private var windowManager = WindowManager.shared
     
     public init(mediaManager: MediaManager) {
         self.mediaManager = mediaManager
     }
     
     public var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             if let item = mediaManager.currentItem {
                 // Top section: Artwork + Track details + App Badge + Collapse button
-                // Positioned safely below the hardware notch cutout
-                HStack(alignment: .top, spacing: 12) {
-                    ArtworkImageView(artworkData: item.artworkData, size: 48, cornerRadius: 10)
+                HStack(alignment: .center, spacing: 12) {
+                    ArtworkImageView(artworkData: item.artworkData, size: 46, cornerRadius: 10)
                     
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 2.5) {
                         // Title
                         Text(item.title)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 13.5, weight: .semibold))
                             .foregroundColor(Color.islandTextPrimary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
                         // Artist or Media Info
                         Text(item.artist.isEmpty ? "Now Playing" : item.artist)
-                            .font(.system(size: 11, weight: .regular))
+                            .font(.system(size: 11.5, weight: .regular))
                             .foregroundColor(Color.islandTextSecondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                         
                         // Active Application Pill Badge
-                        HStack(spacing: 4) {
+                        HStack(spacing: 4.5) {
                             Circle()
                                 .fill(item.isPlaying ? Color.islandAccent : Color.islandTextTertiary)
                                 .frame(width: 5, height: 5)
@@ -49,7 +47,6 @@ public struct ExpandedIslandView: View {
                         .padding(.vertical, 2)
                         .background(Capsule().fill(Color.islandBadgeBackground))
                         .overlay(Capsule().stroke(Color.islandBadgeBorder, lineWidth: 0.5))
-                        .padding(.top, 1)
                     }
                     
                     Spacer(minLength: 0)
@@ -102,7 +99,7 @@ public struct ExpandedIslandView: View {
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 4)
                     
                     Button(action: {
                         WindowManager.shared.collapse()
@@ -120,7 +117,6 @@ public struct ExpandedIslandView: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.top, windowManager.expandedTopPadding)
-        .padding(.bottom, 12)
+        .padding(.vertical, 11)
     }
 }
