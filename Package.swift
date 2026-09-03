@@ -19,7 +19,8 @@ let package = Package(
             dependencies: [],
             path: "Sources/MacIsland",
             exclude: [
-                "Resources/Info.plist"
+                "Resources/Info.plist",
+                "Resources/Logos"
             ]
         )
     ]
