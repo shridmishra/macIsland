@@ -1,6 +1,9 @@
 import Foundation
 import Combine
 import SwiftUI
+import os
+
+private let logger = Logger(subsystem: "com.macisland.app", category: "MediaManager")
 
 // MARK: - MediaManager
 // Central coordinator for media state in Mac Island.
@@ -28,7 +31,7 @@ public final class MediaManager: ObservableObject {
     
     private func setupProvider() {
         provider.onMediaChange = { [weak self] item in
-            Task { @MainActor [weak self] in
+            DispatchQueue.main.async {
                 self?.updateMediaItem(item)
             }
         }
@@ -36,6 +39,7 @@ public final class MediaManager: ObservableObject {
     }
     
     private func updateMediaItem(_ item: MediaItem?) {
+        logger.info("🎧 [MediaManager] updateMediaItem: \(item?.title ?? "none", privacy: .public) | isPlaying: \(item?.isPlaying ?? false)")
         self.currentItem = item
         if let item = item {
             self.playbackState = item.isPlaying ? .playing : .paused
@@ -51,15 +55,17 @@ public final class MediaManager: ObservableObject {
     }
     
     private func startProgressTicker() {
-        // Run ticker every 0.5 seconds to advance the progress bar smoothly
-        progressTicker = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
+        // Run ticker every 0.5 seconds to advance the progress bar smoothly in all run loop modes
+        let ticker = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
                 guard let self = self, let item = self.currentItem, item.isPlaying else { return }
                 let progress = item.currentProgress()
                 self.interpolatedProgress = item.progressFraction()
                 self.formattedCurrentTime = MediaItem.formatTime(progress)
             }
         }
+        RunLoop.main.add(ticker, forMode: .common)
+        self.progressTicker = ticker
     }
     
     // MARK: - Playback Actions

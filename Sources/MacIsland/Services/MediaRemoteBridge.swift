@@ -55,8 +55,10 @@ public final class MediaRemoteBridge: @unchecked Sendable {
     
     private func loadFramework() {
         guard let handle = dlopen("/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote", RTLD_NOW) else {
+            print("❌ [MediaRemoteBridge] Failed to dlopen MediaRemote: \(String(cString: dlerror()))")
             return
         }
+        print("✅ [MediaRemoteBridge] Successfully loaded MediaRemote.framework")
         
         if let regSym = dlsym(handle, "MRMediaRemoteRegisterForNowPlayingNotifications") {
             registerFn = unsafeBitCast(regSym, to: MRRegisterFunc.self)
@@ -75,6 +77,7 @@ public final class MediaRemoteBridge: @unchecked Sendable {
         }
         
         isLoaded = (registerFn != nil && getInfoFn != nil)
+        print("🔍 [MediaRemoteBridge] isLoaded: \(isLoaded), registerFn: \(registerFn != nil), getInfoFn: \(getInfoFn != nil), getPIDFn: \(getPIDFn != nil)")
     }
     
     public var isAvailable: Bool {

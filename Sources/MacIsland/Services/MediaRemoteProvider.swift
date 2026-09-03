@@ -3,10 +3,12 @@ import AppKit
 
 // MARK: - MediaRemote Implementation of NowPlayingProvider
 // Listens to system-wide media events and converts raw dictionary metadata into MediaItem models.
+// Uses MediaRemoteCLIHelper to retrieve system metadata across all audio sources on modern macOS.
 public final class MediaRemoteProvider: NowPlayingProvider, @unchecked Sendable {
     public var onMediaChange: (@Sendable (MediaItem?) -> Void)?
     
     private let bridge = MediaRemoteBridge.shared
+    private let cliHelper = MediaRemoteCLIHelper.shared
     private var notificationObservers: [NSObjectProtocol] = []
     private var isObserving = false
     private var pollingTimer: Timer?
@@ -17,10 +19,9 @@ public final class MediaRemoteProvider: NowPlayingProvider, @unchecked Sendable 
         guard !isObserving else { return }
         isObserving = true
         
-        // Register MediaRemote notification pipeline
-        bridge.registerForNotifications(queue: .main)
+        print("🎵 [MediaRemoteProvider] Starting media observation...")
         
-        // 1. When track info changes (title, artist, artwork, duration)
+        // 1. NotificationCenter.default observers
         let infoObserver = NotificationCenter.default.addObserver(
             forName: MediaRemoteBridge.nowPlayingInfoDidChangeNotification,
             object: nil,
@@ -29,7 +30,6 @@ public final class MediaRemoteProvider: NowPlayingProvider, @unchecked Sendable 
             self?.fetchCurrentMedia()
         }
         
-        // 2. When active media player changes (e.g. Spotify -> Brave)
         let appObserver = NotificationCenter.default.addObserver(
             forName: MediaRemoteBridge.nowPlayingAppDidChangeNotification,
             object: nil,
@@ -38,22 +38,67 @@ public final class MediaRemoteProvider: NowPlayingProvider, @unchecked Sendable 
             self?.fetchCurrentMedia()
         }
         
-        // 3. When playback state changes (play -> pause)
-        let stateObserver = NotificationCenter.default.addObserver(
-            forName: MediaRemoteBridge.nowPlayingPlaybackStateDidChangeNotification,
+        notificationObservers = [infoObserver, appObserver]
+        
+        // 2. Distributed Notification Center (Apple Music & Spotify system broadcasts)
+        let musicObserver = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.apple.Music.playerInfo"),
             object: nil,
             queue: .main
         ) { [weak self] _ in
             self?.fetchCurrentMedia()
         }
         
-        notificationObservers = [infoObserver, appObserver, stateObserver]
+        let spotifyObserver = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.spotify.client.PlaybackStateChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.fetchCurrentMedia()
+        }
         
-        // Initial fetch immediately
+        notificationObservers.append(contentsOf: [musicObserver, spotifyObserver])
+        
+        // 3. Darwin Notification Center (mediaremoted system daemon broadcasts)
+        let darwinCenter = CFNotificationCenterGetDarwinNotifyCenter()
+        let observerPtr = Unmanaged.passUnretained(self).toOpaque()
+        
+        CFNotificationCenterAddObserver(
+            darwinCenter,
+            observerPtr,
+            { _, observer, _, _, _ in
+                guard let observer = observer else { return }
+                let provider = Unmanaged<MediaRemoteProvider>.fromOpaque(observer).takeUnretainedValue()
+                provider.fetchCurrentMedia()
+            },
+            "kMRMediaRemoteNowPlayingInfoDidChangeNotification" as CFString,
+            nil,
+            .deliverImmediately
+        )
+        
+        CFNotificationCenterAddObserver(
+            darwinCenter,
+            observerPtr,
+            { _, observer, _, _, _ in
+                guard let observer = observer else { return }
+                let provider = Unmanaged<MediaRemoteProvider>.fromOpaque(observer).takeUnretainedValue()
+                provider.fetchCurrentMedia()
+            },
+            "kMRMediaRemoteNowPlayingApplicationDidChangeNotification" as CFString,
+            nil,
+            .deliverImmediately
+        )
+        
+        // 4. Heartbeat polling timer added to RunLoop .common mode (1.5 seconds)
+        let timer = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
+            self?.fetchCurrentMedia()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.pollingTimer = timer
+        
+        // Initial immediate fetch
         fetchCurrentMedia()
-        
-        // Periodic heartbeat poll (ensures elapsed time and state stay synchronized)
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.fetchCurrentMedia()
         }
     }
@@ -65,85 +110,42 @@ public final class MediaRemoteProvider: NowPlayingProvider, @unchecked Sendable 
         pollingTimer?.invalidate()
         pollingTimer = nil
         
+        let darwinCenter = CFNotificationCenterGetDarwinNotifyCenter()
+        let observerPtr = Unmanaged.passUnretained(self).toOpaque()
+        CFNotificationCenterRemoveEveryObserver(darwinCenter, observerPtr)
+        
         for observer in notificationObservers {
             NotificationCenter.default.removeObserver(observer)
+            DistributedNotificationCenter.default().removeObserver(observer)
         }
         notificationObservers.removeAll()
-        
-        bridge.unregisterForNotifications()
     }
     
     public func fetchCurrentMedia() {
-        bridge.getNowPlayingInfo(queue: .main) { [weak self] info in
-            guard let self = self else { return }
-            
-            guard let info = info, !info.isEmpty else {
-                self.onMediaChange?(nil)
-                return
-            }
-            
-            // Extract core metadata
-            let rawTitle = info[MediaRemoteBridge.keyTitle] as? String
-            let rawArtist = info[MediaRemoteBridge.keyArtist] as? String
-            let rawAlbum = info[MediaRemoteBridge.keyAlbum] as? String
-            let artworkData = info[MediaRemoteBridge.keyArtworkData] as? Data
-            let duration = (info[MediaRemoteBridge.keyDuration] as? Double) ?? 0.0
-            let elapsedTime = (info[MediaRemoteBridge.keyElapsedTime] as? Double) ?? 0.0
-            let playbackRate = (info[MediaRemoteBridge.keyPlaybackRate] as? Double) ?? 0.0
-            let isPlaying = playbackRate > 0.0
-            
-            // If there is no title and no artist, treat as no media playing
-            guard let title = rawTitle, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                self.onMediaChange?(nil)
-                return
-            }
-            
-            // Query current application process ID to retrieve app name & icon
-            self.bridge.getNowPlayingApplicationPID(queue: .main) { pid in
-                var appName = "Media Player"
-                var bundleId: String? = nil
-                
-                if pid > 0, let runningApp = NSRunningApplication(processIdentifier: pid) {
-                    appName = runningApp.localizedName ?? "Media Player"
-                    bundleId = runningApp.bundleIdentifier
-                }
-                
-                let mediaItem = MediaItem(
-                    title: title,
-                    artist: rawArtist ?? "",
-                    album: rawAlbum ?? "",
-                    artworkData: artworkData,
-                    duration: duration,
-                    currentTime: elapsedTime,
-                    isPlaying: isPlaying,
-                    application: appName,
-                    bundleIdentifier: bundleId,
-                    lastUpdated: Date()
-                )
-                
-                self.onMediaChange?(mediaItem)
+        cliHelper.fetchNowPlaying { [weak self] item in
+            DispatchQueue.main.async {
+                self?.onMediaChange?(item)
             }
         }
     }
     
     public func togglePlayPause() {
         bridge.sendCommand(MediaRemoteBridge.commandTogglePlayPause)
-        // Re-fetch shortly after command dispatch
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
             self?.fetchCurrentMedia()
         }
     }
     
     public func nextTrack() {
         bridge.sendCommand(MediaRemoteBridge.commandNextTrack)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.fetchCurrentMedia()
         }
     }
     
     public func previousTrack() {
         bridge.sendCommand(MediaRemoteBridge.commandPreviousTrack)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.fetchCurrentMedia()
         }
     }

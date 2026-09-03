@@ -27,7 +27,7 @@ public struct ExpandedIslandView: View {
                             .truncationMode(.tail)
                         
                         // Artist
-                        Text(item.artist.isEmpty ? "Unknown Artist" : item.artist)
+                        Text(item.artist.isEmpty ? "Now Playing" : item.artist)
                             .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.islandTextSecondary)
                             .lineLimit(1)
