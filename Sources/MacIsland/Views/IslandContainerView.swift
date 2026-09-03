@@ -2,8 +2,11 @@ import SwiftUI
 
 // MARK: - IslandContainerView
 // The root SwiftUI view of the Island.
-// Pure pitch-black container with ZERO borders and ZERO shadows,
-// merging seamlessly into the physical camera notch and bezel.
+// Renders the pure pitch-black Dynamic Island container merging into the MacBook bezel:
+// - Flat top touching the screen edge.
+// - Smooth outward curves (flares) at top-left and top-right where it connects to the bezel.
+// - Continuous rounded corners on the bottom.
+// - Zero borders, zero shadows.
 @MainActor
 public struct IslandContainerView: View {
     @ObservedObject var windowManager: WindowManager
@@ -23,8 +26,9 @@ public struct IslandContainerView: View {
     
     public var body: some View {
         let isExpanded = windowManager.islandState.isExpanded
-        // Collapsed radius matches the physical MacBook notch bottom curvature (12pt)
-        let cornerRadius: CGFloat = isExpanded ? 22 : 12
+        let flareRadius: CGFloat = isExpanded ? 12 : 8
+        let bottomRadius: CGFloat = isExpanded ? 22 : 12
+        let islandShape = NotchedIslandShape(flareRadius: flareRadius, bottomRadius: bottomRadius)
         
         ZStack {
             if isExpanded {
@@ -42,12 +46,12 @@ public struct IslandContainerView: View {
             width: isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth,
             height: isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
         )
-        // Pure solid pitch-black background with NO borders and NO shadows
+        // Pure solid pitch-black background with outward top flares and rounded bottom corners
         .background(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            islandShape
                 .fill(Color.black)
         )
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .clipShape(islandShape)
         .onHover { hovering in
             windowManager.setHovered(hovering)
         }
