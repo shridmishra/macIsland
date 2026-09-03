@@ -2,7 +2,8 @@ import SwiftUI
 
 // MARK: - MediaControlButtons
 // Native playback controls matching Apple Dynamic Island:
-// Previous, frameless Play/Pause glyph, Next, and right-aligned audio route icon.
+// Previous, frameless Play/Pause glyph with symbol replacement transitions,
+// Next, tactile SpringPressButtonStyle with trackpad haptics, and audio route icon.
 public struct MediaControlButtons: View {
     public let isPlaying: Bool
     public let onPrevious: () -> Void
@@ -10,7 +11,6 @@ public struct MediaControlButtons: View {
     public let onNext: () -> Void
     
     @State private var hoverPrevious = false
-    @State private var hoverPlayPause = false
     @State private var hoverNext = false
     
     public init(
@@ -29,35 +29,31 @@ public struct MediaControlButtons: View {
         ZStack {
             // Centered playback buttons: Previous | Play/Pause | Next
             HStack(spacing: 32) {
-                // Previous button
+                // Previous button with tactile press feedback
                 Button(action: onPrevious) {
                     Image(systemName: "backward.fill")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Color.white.opacity(hoverPrevious ? 1.0 : 0.85))
-                        .scaleEffect(hoverPrevious ? 1.08 : 1.0)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.springPress(scale: 0.88))
                 .onHover { hoverPrevious = $0 }
                 
-                // Play / Pause frameless glyph
+                // Play / Pause frameless glyph with SF Symbol smooth transition
                 Button(action: onTogglePlayPause) {
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundColor(.white)
-                        .scaleEffect(hoverPlayPause ? 1.10 : 1.0)
+                        .contentTransition(.symbolEffect(.replace))
                 }
-                .buttonStyle(.plain)
-                .onHover { hoverPlayPause = $0 }
-                .animation(.spring(response: 0.22, dampingFraction: 0.75), value: hoverPlayPause)
+                .buttonStyle(.springPress(scale: 0.90))
                 
-                // Next button
+                // Next button with tactile press feedback
                 Button(action: onNext) {
                     Image(systemName: "forward.fill")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Color.white.opacity(hoverNext ? 1.0 : 0.85))
-                        .scaleEffect(hoverNext ? 1.08 : 1.0)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.springPress(scale: 0.88))
                 .onHover { hoverNext = $0 }
             }
             .frame(maxWidth: .infinity, alignment: .center)

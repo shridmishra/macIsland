@@ -7,6 +7,7 @@ import SwiftUI
 // - Smooth outward curves (fillets/flares) at top-left and top-right flaring into the bezel.
 // - Continuous rounded corners on the bottom.
 // - Zero borders, zero shadows.
+// - Asymmetric origin-aware transitions unfurling directly from the top notch anchor.
 @MainActor
 public struct IslandContainerView: View {
     @ObservedObject var windowManager: WindowManager
@@ -26,14 +27,19 @@ public struct IslandContainerView: View {
     
     public var body: some View {
         let isExpanded = windowManager.islandState.isExpanded
-        let flareRadius: CGFloat = isExpanded ? 10 : 8
-        let bottomRadius: CGFloat = isExpanded ? 20 : 10
+        let flareRadius: CGFloat = isExpanded ? 10 : 6
+        let bottomRadius: CGFloat = isExpanded ? 22 : 10
         let islandShape = NotchedIslandShape(flareRadius: flareRadius, bottomRadius: bottomRadius)
         
         ZStack {
             if isExpanded {
                 ExpandedIslandView(mediaManager: mediaManager)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .transition(
+                        .asymmetric(
+                            insertion: .scale(scale: 0.94, anchor: .top).combined(with: .opacity),
+                            removal: .scale(scale: 0.96, anchor: .top).combined(with: .opacity)
+                        )
+                    )
             } else {
                 CollapsedIslandView(
                     item: mediaManager.currentItem,
