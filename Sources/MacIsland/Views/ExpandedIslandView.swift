@@ -5,7 +5,7 @@ import AppKit
 // The rich, interactive floating card revealed when hovering over Mac Island.
 // Pixel-perfect alignment matching the reference Dynamic Island layout:
 // - Header: Artwork (36x36) + Track Title & Subtitle + Waveform Equalizer Pulse at its designated top-right place
-// - Scrubber: Elapsed Time + Progress Capsule + Negative Remaining Time
+// - Scrubber: Elapsed Time + Progress Capsule + Negative Remaining Time (real-time tracking & seeking)
 // - Controls: Centered Previous / Frameless Play-Pause / Next + Dynamic Audio Route Icon
 // Participates in matchedGeometryEffect for seamless, continuous fluid expansion.
 public struct ExpandedIslandView: View {
@@ -58,11 +58,14 @@ public struct ExpandedIslandView: View {
                     .animation(.easeInOut(duration: 0.25), value: isPlaying)
                 }
                 
-                // Middle section: Scannable horizontal progress bar with timestamps
+                // Middle section: Scannable horizontal progress bar with timestamps & interactive seek
                 PlaybackProgressSlider(
                     progress: mediaManager.interpolatedProgress,
                     currentTimeString: mediaManager.formattedCurrentTime,
-                    remainingTimeString: mediaManager.formattedRemainingTime
+                    remainingTimeString: mediaManager.formattedRemainingTime,
+                    onSeek: { targetFraction in
+                        mediaManager.seek(to: targetFraction)
+                    }
                 )
                 .transition(.opacity.combined(with: .offset(y: 3)))
                 

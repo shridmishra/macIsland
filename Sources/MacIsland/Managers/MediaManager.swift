@@ -4,9 +4,9 @@ import AppKit
 import os.log
 
 // MARK: - MediaManager
-// Central state manager for media playback information.
+// Central state manager for media playback information and real-time timeline progress.
 // Connects to NowPlayingProvider and automatically detects browser streaming services
-// (YouTube, Netflix, Prime Video, Spotify, etc.) via BrowserServiceDetector.
+// and exact playback position (currentTime / duration) via BrowserServiceDetector.
 @MainActor
 public final class MediaManager: ObservableObject {
     public static let shared = MediaManager()
@@ -48,7 +48,7 @@ public final class MediaManager: ObservableObject {
             return
         }
         
-        // Retain previously resolved service if the track title is unchanged
+        // 1. Retain previously resolved service if the track title is unchanged
         let resolvedService: MediaService
         if newItem.service != .generic {
             resolvedService = newItem.service
@@ -60,18 +60,42 @@ public final class MediaManager: ObservableObject {
             resolvedService = newItem.service
         }
         
+        // 2. Retain duration and running progress if new item has zero or stale progress
+        let resolvedDuration: Double
+        if newItem.duration > 0 {
+            resolvedDuration = newItem.duration
+        } else if let existing = self.currentItem, existing.title == newItem.title, existing.duration > 0 {
+            resolvedDuration = existing.duration
+        } else {
+            resolvedDuration = 0.0
+        }
+        
+        let resolvedCurrentTime: Double
+        let resolvedLastUpdated: Date
+        if newItem.currentTime > 0 {
+            resolvedCurrentTime = newItem.currentTime
+            resolvedLastUpdated = newItem.lastUpdated
+        } else if let existing = self.currentItem, existing.title == newItem.title, existing.currentProgress() > 0 {
+            // Retain running progress and advance from wall clock
+            resolvedCurrentTime = existing.currentProgress()
+            resolvedLastUpdated = Date()
+        } else {
+            resolvedCurrentTime = newItem.currentTime
+            resolvedLastUpdated = newItem.lastUpdated
+        }
+        
         let mergedItem = MediaItem(
             id: newItem.id,
             title: newItem.title,
             artist: newItem.artist,
             album: newItem.album,
             artworkData: newItem.artworkData ?? self.currentItem?.artworkData,
-            duration: newItem.duration,
-            currentTime: newItem.currentTime,
+            duration: resolvedDuration,
+            currentTime: resolvedCurrentTime,
             isPlaying: newItem.isPlaying,
             application: newItem.application,
             bundleIdentifier: newItem.bundleIdentifier,
-            lastUpdated: newItem.lastUpdated,
+            lastUpdated: resolvedLastUpdated,
             service: resolvedService
         )
         
@@ -85,8 +109,8 @@ public final class MediaManager: ObservableObject {
         let remaining = max(0, mergedItem.duration - progress)
         self.formattedRemainingTime = mergedItem.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
         
-        // If still generic in a browser, query background tab detector
-        if mergedItem.isBrowserMedia && mergedItem.service == .generic {
+        // 3. Query background tab detector for accurate service and video currentTime/duration
+        if mergedItem.isBrowserMedia {
             let bundleId = mergedItem.bundleIdentifier ?? ""
             let appName = mergedItem.application
             let trackTitle = mergedItem.title
@@ -99,20 +123,29 @@ public final class MediaManager: ObservableObject {
                 ) {
                     await MainActor.run { [weak self] in
                         guard let self = self, self.currentItem?.title == trackTitle else { return }
-                        self.currentItem = MediaItem(
+                        let finalDuration = (detected.duration ?? 0) > 0 ? (detected.duration ?? mergedItem.duration) : mergedItem.duration
+                        let finalCurrentTime = (detected.currentTime ?? 0) > 0 ? (detected.currentTime ?? mergedItem.currentTime) : mergedItem.currentTime
+                        let updated = MediaItem(
                             id: mergedItem.id,
                             title: mergedItem.title,
                             artist: mergedItem.artist,
                             album: mergedItem.album,
                             artworkData: mergedItem.artworkData,
-                            duration: mergedItem.duration,
-                            currentTime: mergedItem.currentTime,
+                            duration: finalDuration,
+                            currentTime: finalCurrentTime,
                             isPlaying: mergedItem.isPlaying,
                             application: mergedItem.application,
                             bundleIdentifier: mergedItem.bundleIdentifier,
-                            lastUpdated: mergedItem.lastUpdated,
-                            service: detected
+                            lastUpdated: Date(),
+                            service: detected.service != .generic ? detected.service : mergedItem.service
                         )
+                        self.currentItem = updated
+                        let progress = updated.currentProgress()
+                        self.interpolatedProgress = updated.progressFraction()
+                        self.formattedCurrentTime = MediaItem.formatTime(progress)
+                        self.formattedDuration = MediaItem.formatTime(updated.duration)
+                        let remaining = max(0, updated.duration - progress)
+                        self.formattedRemainingTime = updated.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
                     }
                 }
             }
@@ -138,7 +171,6 @@ public final class MediaManager: ObservableObject {
     // MARK: - Playback Actions
     public func togglePlayPause() {
         provider.togglePlayPause()
-        // Optimistic UI update for instant feedback
         if let item = currentItem {
             let nextPlaying = !item.isPlaying
             playbackState = nextPlaying ? .playing : .paused
@@ -151,6 +183,34 @@ public final class MediaManager: ObservableObject {
     
     public func previousTrack() {
         provider.previousTrack()
+    }
+    
+    public func seek(to fraction: Double) {
+        guard let item = currentItem, item.duration > 0 else { return }
+        let targetSeconds = max(0, min(item.duration, fraction * item.duration))
+        interpolatedProgress = fraction
+        formattedCurrentTime = MediaItem.formatTime(targetSeconds)
+        let remaining = max(0, item.duration - targetSeconds)
+        formattedRemainingTime = "-\(MediaItem.formatTime(remaining))"
+        
+        // Seek in browser video via AppleScript if applicable
+        if item.isBrowserMedia, let appName = Optional(item.application) {
+            DispatchQueue.global(qos: .userInitiated).async {
+                let script = """
+                tell application "\(appName)"
+                    if running then
+                        try
+                            tell active tab of window 1
+                                execute javascript "(() => { const v = document.querySelector('video'); if (v) v.currentTime = \(targetSeconds); })()"
+                            end tell
+                        end try
+                    end if
+                end tell
+                """
+                var error: NSDictionary?
+                NSAppleScript(source: script)?.executeAndReturnError(&error)
+            }
+        }
     }
     
     deinit {

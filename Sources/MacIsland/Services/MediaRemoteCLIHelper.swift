@@ -1,20 +1,15 @@
 import Foundation
 import AppKit
-import os
-
-private let logger = Logger(subsystem: "com.macisland.app", category: "MediaCLI")
+import os.log
 
 // MARK: - MediaRemoteCLIHelper
-// On macOS 15.4+ and macOS 26, Apple restricted direct in-process calls to `MRMediaRemoteGetNowPlayingInfo`
-// from user-space GUI applications (returning Error Code 3 "Operation not permitted" due to missing 0x200 entitlements).
-// However, Apple's signed system interpreter `/usr/bin/swift` possesses the required entitlements.
-//
-// MediaRemoteCLIHelper uses a lightweight, asynchronous bridge via `/usr/bin/swift` to stream
-// system-wide Now Playing metadata across all applications (Brave, Chrome, Safari, YouTube, Spotify, Music, etc.)
-// with zero user permissions.
+// Out-of-process CLI helper that queries Apple's private MediaRemote framework.
+// Runs with root/user privileges via /usr/bin/swift without causing sandbox crashes.
+// Extracts track info, album artwork, exact capture timestamp, and playback status.
 public final class MediaRemoteCLIHelper: @unchecked Sendable {
     public static let shared = MediaRemoteCLIHelper()
     
+    private let logger = Logger(subsystem: "com.macisland.app", category: "MediaCLI")
     private let swiftPath = "/usr/bin/swift"
     private var isFetching = false
     private let fetchQueue = DispatchQueue(label: "com.macisland.mediaremote.fetch", qos: .userInitiated)
@@ -49,6 +44,11 @@ public final class MediaRemoteCLIHelper: @unchecked Sendable {
         d["duration"] = info["kMRMediaRemoteNowPlayingInfoDuration"] as? Double ?? 0.0
         d["elapsedTime"] = info["kMRMediaRemoteNowPlayingInfoElapsedTime"] as? Double ?? 0.0
         d["playbackRate"] = info["kMRMediaRemoteNowPlayingInfoPlaybackRate"] as? Double ?? 0.0
+        if let ts = info["kMRMediaRemoteNowPlayingInfoTimestamp"] as? Date {
+            d["timestamp"] = ts.timeIntervalSince1970
+        } else {
+            d["timestamp"] = Date().timeIntervalSince1970
+        }
         if let artwork = info["kMRMediaRemoteNowPlayingInfoArtworkData"] as? Data {
             d["artwork"] = artwork.base64EncodedString()
         }
@@ -108,6 +108,8 @@ public final class MediaRemoteCLIHelper: @unchecked Sendable {
                 let elapsedTime = json["elapsedTime"] as? Double ?? 0.0
                 let playbackRate = json["playbackRate"] as? Double ?? 0.0
                 let pid = json["pid"] as? pid_t ?? 0
+                let timestamp = json["timestamp"] as? Double ?? Date().timeIntervalSince1970
+                let lastUpdated = Date(timeIntervalSince1970: timestamp)
                 
                 var artworkData: Data? = nil
                 if let base64Str = json["artwork"] as? String {
@@ -131,13 +133,13 @@ public final class MediaRemoteCLIHelper: @unchecked Sendable {
                     isPlaying: playbackRate > 0.0,
                     application: appName,
                     bundleIdentifier: bundleId,
-                    lastUpdated: Date()
+                    lastUpdated: lastUpdated
                 )
                 
-                logger.info("✅ Found track: \(title, privacy: .public) | app: \(appName, privacy: .public) | playing: \(playbackRate > 0.0)")
+                self.logger.info("✅ Found track: \(title, privacy: .public) | app: \(appName, privacy: .public) | playing: \(playbackRate > 0.0) | time: \(elapsedTime)/\(duration)")
                 completion(item)
             } catch {
-                logger.error("❌ Process run error: \(error.localizedDescription, privacy: .public)")
+                self.logger.error("❌ Process run error: \(error.localizedDescription, privacy: .public)")
                 completion(nil)
             }
         }
