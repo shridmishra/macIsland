@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - MediaControlButtons
 // Native playback controls: Previous, Play/Pause toggle, and Next.
-// Includes subtle hover feedback and Apple-style tactile click feel.
+// Clean, flat, borderless and shadowless to match the pure black aesthetic.
 public struct MediaControlButtons: View {
     public let isPlaying: Bool
     public let onPrevious: () -> Void
@@ -48,7 +48,6 @@ public struct MediaControlButtons: View {
                     .background(Color.white.opacity(0.95))
                     .clipShape(Circle())
                     .scaleEffect(hoverPlayPause ? 1.06 : 1.0)
-                    .shadow(color: Color.black.opacity(0.20), radius: 3, y: 1)
             }
             .buttonStyle(.plain)
             .onHover { hoverPlayPause = $0 }

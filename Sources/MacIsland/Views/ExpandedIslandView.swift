@@ -48,7 +48,6 @@ public struct ExpandedIslandView: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Capsule().fill(Color.islandBadgeBackground))
-                        .overlay(Capsule().stroke(Color.islandBadgeBorder, lineWidth: 0.5))
                     }
                     
                     Spacer(minLength: 0)

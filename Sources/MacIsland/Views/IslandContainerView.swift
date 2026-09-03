@@ -2,8 +2,8 @@ import SwiftUI
 
 // MARK: - IslandContainerView
 // The root SwiftUI view of the Island.
-// Renders the pure pitch-black Dynamic Island container that merges seamlessly
-// with the physical MacBook camera cutout.
+// Pure pitch-black container with ZERO borders and ZERO shadows,
+// merging seamlessly into the physical camera notch and bezel.
 @MainActor
 public struct IslandContainerView: View {
     @ObservedObject var windowManager: WindowManager
@@ -42,17 +42,12 @@ public struct IslandContainerView: View {
             width: isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth,
             height: isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
         )
-        // Pure pitch-black background to merge seamlessly with the physical camera notch
+        // Pure solid pitch-black background with NO borders and NO shadows
         .background(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(Color.black)
         )
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .stroke(LinearGradient.islandRimBorder, lineWidth: 0.75)
-        )
-        .shadow(color: Color.black.opacity(0.55), radius: isExpanded ? 18 : 6, x: 0, y: isExpanded ? 8 : 2)
         .onHover { hovering in
             windowManager.setHovered(hovering)
         }
