@@ -67,9 +67,9 @@ public struct MediaControlButtons: View {
                 HStack {
                     Spacer()
                     Image(systemName: iconName)
-                        .font(.system(size: 11.5, weight: .medium))
-                        .foregroundColor(Color.white.opacity(0.42))
-                        .offset(y: 2.5) // Optically centered with transport controls
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundColor(Color.white.opacity(0.48))
+                        .offset(y: 2) // Optically centered with transport controls
                 }
             }
         }
