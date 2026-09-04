@@ -111,7 +111,7 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                             repeat with w in windows
                                 repeat with t in tabs of w
                                     try
-                                        set js to do JavaScript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const all = Array.from(document.querySelectorAll('video, audio')); let m = all.find(el => !el.paused && !el.ended && el.currentTime > 0) || all.find(el => !el.paused && !el.ended) || all.find(el => el.currentTime > 0 && !el.ended) || all[0]; const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying; })()" in t
+                                        set js to do JavaScript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const all = Array.from(document.querySelectorAll('video, audio')); let m = all.find(el => !el.paused && !el.ended && el.currentTime > 0) || all.find(el => !el.paused && !el.ended) || all.find(el => el.currentTime > 0 && !el.ended) || all[0]; const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const msArtist = (ms && ms.artist ? ms.artist : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying + '|||' + msArtist; })()" in t
                                         if "\(lowerPrefix)" is not "" and js contains "\(lowerPrefix)" then
                                             set match to js
                                             exit repeat
@@ -141,7 +141,7 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                                 repeat with t in tabs of w
                                     try
                                         tell t
-                                            set js to execute javascript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const all = Array.from(document.querySelectorAll('video, audio')); let m = all.find(el => !el.paused && !el.ended && el.currentTime > 0) || all.find(el => !el.paused && !el.ended) || all.find(el => el.currentTime > 0 && !el.ended) || all[0]; const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying; })()"
+                                            set js to execute javascript "(() => { const u = window.location.href; const ms = navigator.mediaSession ? navigator.mediaSession.metadata : null; const all = Array.from(document.querySelectorAll('video, audio')); let m = all.find(el => !el.paused && !el.ended && el.currentTime > 0) || all.find(el => !el.paused && !el.ended) || all.find(el => el.currentTime > 0 && !el.ended) || all[0]; const timeInfo = m ? (m.currentTime + ',' + m.duration) : ''; const isPlaying = m ? !m.paused : false; const msTitle = (ms && ms.title ? ms.title : '').toLowerCase(); const msArtist = (ms && ms.artist ? ms.artist : '').toLowerCase(); const tabTitle = document.title.toLowerCase(); return u + '|||' + timeInfo + '|||' + msTitle + '|||' + tabTitle + '|||' + isPlaying + '|||' + msArtist; })()"
                                         end tell
                                         if "\(lowerPrefix)" is not "" and js contains "\(lowerPrefix)" then
                                             set match to js
@@ -180,34 +180,41 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                     if !res.isEmpty {
                         let parts = res.components(separatedBy: "|||")
                         let urlStr = parts.first ?? ""
-                        let lower = urlStr.lowercased()
+                        let urlLower = urlStr.lowercased()
+                        let msTitleLower = (parts.count > 2 ? parts[2] : "").lowercased()
+                        let tabTitleLower = (parts.count > 3 ? parts[3] : "").lowercased()
+                        let msArtistLower = (parts.count > 5 ? parts[5] : "").lowercased()
                         
                         let detected: MediaService
-                        if lower.contains("music.youtube.com") {
+                        if urlLower.contains("music.youtube.com") || tabTitleLower.contains("youtube music") || msTitleLower.contains("youtube music") {
                             detected = .youtubeMusic
-                        } else if lower.contains("youtube.com") || lower.contains("youtu.be") {
+                        } else if urlLower.contains("youtube.com") || urlLower.contains("youtu.be") || tabTitleLower.contains("youtube") {
                             detected = .youtube
-                        } else if lower.contains("x.com") || lower.contains("twitter.com") {
+                        } else if urlLower.contains("x.com") || urlLower.contains("twitter.com") {
                             detected = .x
-                        } else if lower.contains("spotify.com") {
+                        } else if urlLower.contains("spotify.com") || tabTitleLower.contains("spotify") {
                             detected = .spotify
-                        } else if lower.contains("netflix.com") {
+                        } else if urlLower.contains("netflix.com") || tabTitleLower.contains("netflix") || msTitleLower.contains("netflix") {
                             detected = .netflix
-                        } else if lower.contains("primevideo.com") || lower.contains("amazon.com/gp/video") {
+                        } else if urlLower.contains("primevideo.com") || urlLower.contains("primevideo") || urlLower.contains("prime-video") ||
+                                  (urlLower.contains("amazon.") && (urlLower.contains("/video") || urlLower.contains("/gp/video") || urlLower.contains("prime") || urlLower.contains("minitv") || urlLower.contains("/pv/"))) ||
+                                  tabTitleLower.contains("prime video") || tabTitleLower.contains("amazon prime") || tabTitleLower.contains("primevideo") ||
+                                  msTitleLower.contains("prime video") || msArtistLower.contains("prime video") {
                             detected = .primeVideo
-                        } else if lower.contains("music.amazon.") {
+                        } else if urlLower.contains("music.amazon.") {
                             detected = .amazonMusic
-                        } else if lower.contains("music.apple.com") {
+                        } else if urlLower.contains("music.apple.com") {
                             detected = .appleMusic
-                        } else if lower.contains("jiosaavn.com") {
+                        } else if urlLower.contains("jiosaavn.com") {
                             detected = .jioSaavn
-                        } else if lower.contains("gaana.com") {
+                        } else if urlLower.contains("gaana.com") {
                             detected = .gaana
-                        } else if lower.contains("soundcloud.com") {
+                        } else if urlLower.contains("soundcloud.com") {
                             detected = .soundcloud
-                        } else if lower.contains("disneyplus.com") || lower.contains("hotstar.com") {
+                        } else if urlLower.contains("disneyplus.com") || urlLower.contains("hotstar.com") ||
+                                  tabTitleLower.contains("disney+") || tabTitleLower.contains("disneyplus") || tabTitleLower.contains("hotstar") || tabTitleLower.contains("disney plus") {
                             detected = .disneyPlus
-                        } else if lower.contains("twitch.tv") {
+                        } else if urlLower.contains("twitch.tv") {
                             detected = .twitch
                         } else {
                             detected = .generic
@@ -223,8 +230,8 @@ public final class BrowserServiceDetector: @unchecked Sendable {
                             }
                         }
                         
-                        self?.setActiveService(detected, for: [bundleId, appName, "Brave Browser", "com.brave.Browser"])
                         if detected != .generic {
+                            self?.setActiveService(detected, for: [bundleId, appName])
                             let key = "\(bundleId):\(trackTitle)" as NSString
                             self?.cache.setObject(detected.rawValue as NSString, forKey: key)
                         }

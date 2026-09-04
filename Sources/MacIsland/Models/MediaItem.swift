@@ -61,13 +61,24 @@ public struct MediaItem: Equatable, Sendable {
         )
         
         self.service = service ?? detection.service
-        self.displayTitle = detection.cleanedTitle
+        let baseTitle = detection.cleanedTitle
+        self.displayTitle = (self.service != .generic) ? MediaService.cleanServiceTitle(baseTitle) : baseTitle
         
         if artist.isEmpty, let extracted = detection.extractedAuthor, !extracted.isEmpty {
             self.artist = extracted
         } else {
             self.artist = artist
         }
+    }
+    
+    /// Returns true if this media item is from a music streaming service (Spotify, Apple Music, etc.)
+    public var isMusicService: Bool {
+        service.isMusicService
+    }
+    
+    /// Returns true if this media item is from a video streaming service (Prime Video, Netflix, Disney+, etc.)
+    public var isVideoService: Bool {
+        service.isVideoService
     }
     
     /// Returns true if this media originated from a web browser (Brave, Chrome, Safari, etc.)

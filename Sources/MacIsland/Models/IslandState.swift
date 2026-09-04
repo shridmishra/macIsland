@@ -15,4 +15,8 @@ public enum IslandState: Equatable, Sendable {
     public var isCollapsed: Bool {
         self == .collapsed
     }
+    
+    public var isHidden: Bool {
+        self == .hidden
+    }
 }

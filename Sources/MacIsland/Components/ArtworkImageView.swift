@@ -44,9 +44,11 @@ public struct ArtworkImageView: View {
     
     public var body: some View {
         Group {
-            // When playing in a web browser with a recognized streaming service (Prime Video, Netflix, YouTube, Spotify, etc.) without album art,
-            // show the media service brand icon instead of the browser logo (Brave/Chrome)!
-            if isBrowserMedia && service != .generic && (artworkData == nil || artworkData?.isEmpty == true) {
+            // When playing on a recognized video streaming service (Prime Video, Netflix, Disney+, etc.),
+            // strictly show the crisp official brand icon instead of random video scene frames!
+            if service.isVideoService {
+                BrandIconView(service: service, size: size, cornerRadius: cornerRadius)
+            } else if isBrowserMedia && service != .generic && (artworkData == nil || artworkData?.isEmpty == true) {
                 BrandIconView(service: service, size: size, cornerRadius: cornerRadius)
             } else if let data = artworkData, let nsImage = NSImage(data: data) {
                 Image(nsImage: nsImage)
@@ -64,7 +66,7 @@ public struct ArtworkImageView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(Color.white.opacity(0.12))
-                    Image(systemName: "music.note")
+                    Image(systemName: service.isVideoService ? "play.tv.fill" : "music.note")
                         .font(.system(size: size * 0.42, weight: .medium))
                         .foregroundColor(Color.islandTextSecondary)
                 }

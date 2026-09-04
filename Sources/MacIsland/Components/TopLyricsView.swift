@@ -16,49 +16,55 @@ public struct TopLyricsView: View {
     }
     
     public var body: some View {
-        HStack(spacing: 6) {
-            if lyricsManager.isLoading {
-                // Robust loading indicator that fits smoothly
+        Group {
+            if isPlaying {
                 HStack(spacing: 6) {
-                    ProgressView()
-                        .scaleEffect(0.55)
-                        .frame(width: 12, height: 12)
-                    
-                    Text("Loading...")
-                        .font(.system(size: 11.5, weight: .medium))
-                        .foregroundColor(Color.islandTextSecondary)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                    if lyricsManager.isLoading {
+                        // Robust loading indicator that fits smoothly
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .scaleEffect(0.55)
+                                .frame(width: 12, height: 12)
+                            
+                            Text("Loading...")
+                                .font(.system(size: 11.5, weight: .medium))
+                                .foregroundColor(Color.islandTextSecondary)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
+                        .transition(.opacity)
+                    } else if lyricsManager.showNoLyricsNotice {
+                        // "No lyrics" text displayed for 5 seconds before transitioning to audio pulse
+                        Text("No lyrics")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(Color.white.opacity(0.80))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .transition(.opacity)
+                    } else if let line = lyricsManager.currentLine, !line.text.isEmpty {
+                        // ACTIVE SINGING: Clean kinetic typography with blur-slide transition
+                        Text(line.text)
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundColor(Color.islandTextPrimary)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .id("\(line.id.uuidString)-\(line.text)")
+                            .transition(.lyricBlurSlide)
+                    } else {
+                        // ONLY MUSIC / INSTRUMENTAL: Animated tune icon grooving with the beat!
+                        AnimatedTuneIcon(isPlaying: isPlaying)
+                            .transition(.scale(scale: 0.88).combined(with: .opacity))
+                    }
                 }
-                .transition(.opacity)
-            } else if lyricsManager.showNoLyricsNotice {
-                // "No lyrics" text displayed for 5 seconds before transitioning to audio pulse
-                Text("No lyrics")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color.white.opacity(0.80))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .transition(.opacity)
-            } else if let line = lyricsManager.currentLine, !line.text.isEmpty {
-                // ACTIVE SINGING: Clean kinetic typography with blur-slide transition
-                Text(line.text)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundColor(Color.islandTextPrimary)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .id("\(line.id.uuidString)-\(line.text)")
-                    .transition(.lyricBlurSlide)
+                .frame(alignment: .leading)
+                .animation(IslandAnimation.lyricsSpring, value: lyricsManager.currentLine?.id)
+                .animation(IslandAnimation.lyricsSpring, value: lyricsManager.currentLine?.text)
+                .animation(IslandAnimation.snappySpring, value: lyricsManager.isLoading)
+                .animation(IslandAnimation.snappySpring, value: lyricsManager.showNoLyricsNotice)
             } else {
-                // ONLY MUSIC / INSTRUMENTAL: Animated tune icon grooving with the beat!
-                AnimatedTuneIcon(isPlaying: isPlaying)
-                    .transition(.scale(scale: 0.88).combined(with: .opacity))
+                EmptyView()
             }
         }
-        .frame(alignment: .leading)
-        .animation(IslandAnimation.lyricsSpring, value: lyricsManager.currentLine?.id)
-        .animation(IslandAnimation.lyricsSpring, value: lyricsManager.currentLine?.text)
-        .animation(IslandAnimation.snappySpring, value: lyricsManager.isLoading)
-        .animation(IslandAnimation.snappySpring, value: lyricsManager.showNoLyricsNotice)
     }
 }
 

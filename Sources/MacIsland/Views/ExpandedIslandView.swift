@@ -23,82 +23,84 @@ public struct ExpandedIslandView: View {
     public var body: some View {
         VStack(spacing: 12) {
             if let item = mediaManager.currentItem {
-                    let isPlaying = mediaManager.playbackState.isPlaying
-                    let pulseColors = isPlaying ? item.pulseColors : item.pulseColors.map { $0.opacity(0.75) }
-                    
-                    // Top section: Interactive Track Header (opens active browser tab / source app on click)
-                    Button {
-                        mediaManager.openCurrentSource()
-                        WindowManager.shared.collapse()
-                    } label: {
-                        HStack(alignment: .center, spacing: 11) {
-                            // Artwork: Skeleton placeholder during transition, real artwork otherwise
-                            ZStack {
-                                if mediaManager.isTransitioning {
-                                    SkeletonArtworkView(size: 36, cornerRadius: 8)
-                                        .transition(.opacity)
-                                } else {
-                                    ArtworkImageView(item: item, size: 36, cornerRadius: 8)
-                                        .matchedGeometryEffect(id: "islandArtwork", in: namespace)
-                                        .transition(.opacity)
-                                }
+                let isPlaying = mediaManager.playbackState.isPlaying
+                let pulseColors = isPlaying ? item.pulseColors : item.pulseColors.map { $0.opacity(0.75) }
+                let isTitleEmpty = item.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                let showSkeleton = mediaManager.isTransitioning || isTitleEmpty
+                
+                // Top section: Interactive Track Header (opens active browser tab / source app on click)
+                Button {
+                    mediaManager.openCurrentSource()
+                    WindowManager.shared.collapse()
+                } label: {
+                    HStack(alignment: .center, spacing: 11) {
+                        // Artwork: Skeleton placeholder during transition or when empty, real artwork otherwise
+                        ZStack {
+                            if showSkeleton || (item.artworkData == nil && isTitleEmpty) {
+                                SkeletonArtworkView(size: 36, cornerRadius: 8)
+                                    .transition(.opacity)
+                            } else {
+                                ArtworkImageView(item: item, size: 36, cornerRadius: 8)
+                                    .matchedGeometryEffect(id: "islandArtwork", in: namespace)
+                                    .transition(.opacity)
                             }
-                            .animation(.easeInOut(duration: 0.2), value: mediaManager.isTransitioning)
-                            
-                            // Title + Subtitle: Skeleton pill lines during transition
-                            VStack(alignment: .leading, spacing: 2) {
-                                if mediaManager.isTransitioning {
-                                    SkeletonTextLine(width: 120, height: 12)
-                                        .transition(.opacity)
-                                    SkeletonTextLine(width: 80, height: 10)
-                                        .transition(.opacity)
-                                } else {
-                                    // Title: bold, crisp, marquee animated on playback
-                                    MarqueeText(
-                                        text: item.displayTitle,
-                                        font: .system(size: 13, weight: .bold),
-                                        nsFont: .systemFont(ofSize: 13, weight: .bold),
-                                        color: Color.islandTextPrimary,
-                                        isPlaying: isPlaying,
-                                        speed: 30.0,
-                                        holdDelay: 2.0,
-                                        spacing: 36.0,
-                                        fadeLength: 14.0
-                                    )
-                                    
-                                    // Subtitle: Service name or Artist • Service
-                                    Text(item.subtitleText)
-                                        .font(.system(size: 11.5, weight: .medium))
-                                        .foregroundColor(Color.white.opacity(0.60))
-                                        .lineLimit(1)
-                                        .truncationMode(.tail)
-                                }
+                        }
+                        .animation(.easeInOut(duration: 0.2), value: showSkeleton)
+                        
+                        // Title + Subtitle: Skeleton pill lines during transition or empty title
+                        VStack(alignment: .leading, spacing: 2) {
+                            if showSkeleton {
+                                SkeletonTextLine(width: 120, height: 12)
+                                    .transition(.opacity)
+                                SkeletonTextLine(width: 80, height: 10)
+                                    .transition(.opacity)
+                            } else {
+                                // Title: bold, crisp, marquee animated on playback
+                                MarqueeText(
+                                    text: item.displayTitle,
+                                    font: .system(size: 13, weight: .bold),
+                                    nsFont: .systemFont(ofSize: 13, weight: .bold),
+                                    color: Color.islandTextPrimary,
+                                    isPlaying: isPlaying,
+                                    speed: 30.0,
+                                    holdDelay: 2.0,
+                                    spacing: 36.0,
+                                    fadeLength: 14.0
+                                )
+                                
+                                // Subtitle: Service name or Artist • Service
+                                Text(item.subtitleText)
+                                    .font(.system(size: 11.5, weight: .medium))
+                                    .foregroundColor(Color.white.opacity(0.60))
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
                             }
-                            .animation(.easeInOut(duration: 0.2), value: mediaManager.isTransitioning)
-                            .transition(.opacity)
-                            
-                            Spacer(minLength: 8)
-                            
-                            // Waveform Audio Equalizer Pulse kept inside the floating card header
-                            AudioWaveformIndicator(
-                                isPlaying: isPlaying,
-                                colors: pulseColors
-                            )
-                            .matchedGeometryEffect(id: "islandWaveform", in: namespace)
-                            .padding(.trailing, 8)
-                            .animation(.easeInOut(duration: 0.25), value: isPlaying)
                         }
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
+                        .animation(.easeInOut(duration: 0.2), value: showSkeleton)
+                        .transition(.opacity)
+                        
+                        Spacer(minLength: 8)
+                        
+                        // Waveform Audio Equalizer Pulse kept inside the floating card header
+                        AudioWaveformIndicator(
+                            isPlaying: isPlaying,
+                            colors: isTitleEmpty ? [Color.islandTextTertiary] : pulseColors
+                        )
+                        .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                        .padding(.trailing, 8)
+                        .animation(.easeInOut(duration: 0.25), value: isPlaying)
                     }
-                    .buttonStyle(SpringPressButtonStyle(pressedScale: 0.98, hasHaptic: true))
-                    .onHover { isHovered in
-                        if isHovered {
-                            NSCursor.pointingHand.set()
-                        } else {
-                            NSCursor.arrow.set()
-                        }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(SpringPressButtonStyle(pressedScale: 0.98, hasHaptic: true))
+                .onHover { isHovered in
+                    if isHovered {
+                        NSCursor.pointingHand.set()
+                    } else {
+                        NSCursor.arrow.set()
                     }
+                }
                 
                 // Middle section: Scannable horizontal progress bar with timestamps & interactive seek
                 PlaybackProgressSlider(
@@ -111,15 +113,55 @@ public struct ExpandedIslandView: View {
                 )
                 .transition(.opacity.combined(with: .offset(y: 3)))
                 
-                // Bottom section: Centered Playback controls + Dynamic Route icon + Lyrics Toggle Button
+                // Bottom section: Centered Playback controls + Dynamic Route icon + Lyrics Toggle Button (music only)
                 MediaControlButtons(
                     isPlaying: isPlaying,
                     isLyricsEnabled: lyricsManager.isLyricsEnabled,
+                    showLyricsButton: !item.service.isVideoService,
                     audioRouteIcon: routeManager.activeRouteIcon,
                     onPrevious: { mediaManager.previousTrack() },
                     onTogglePlayPause: { mediaManager.togglePlayPause() },
                     onNext: { mediaManager.nextTrack() },
                     onToggleLyrics: { lyricsManager.toggleLyrics() }
+                )
+                .transition(.opacity.combined(with: .offset(y: 4)))
+            } else if mediaManager.isTransitioning {
+                // Skeleton loading state for song layout during initial track arrival
+                HStack(alignment: .center, spacing: 11) {
+                    SkeletonArtworkView(size: 36, cornerRadius: 8)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        SkeletonTextLine(width: 120, height: 12)
+                        SkeletonTextLine(width: 80, height: 10)
+                    }
+                    
+                    Spacer(minLength: 8)
+                    
+                    AudioWaveformIndicator(
+                        isPlaying: false,
+                        colors: [Color.islandTextTertiary]
+                    )
+                    .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                    .padding(.trailing, 8)
+                }
+                .frame(maxWidth: .infinity)
+                
+                PlaybackProgressSlider(
+                    progress: 0.0,
+                    currentTimeString: "0:00",
+                    remainingTimeString: "-0:00"
+                )
+                .transition(.opacity.combined(with: .offset(y: 3)))
+                
+                MediaControlButtons(
+                    isPlaying: false,
+                    isLyricsEnabled: false,
+                    showLyricsButton: false,
+                    audioRouteIcon: routeManager.activeRouteIcon,
+                    onPrevious: {},
+                    onTogglePlayPause: {},
+                    onNext: {},
+                    onToggleLyrics: {}
                 )
                 .transition(.opacity.combined(with: .offset(y: 4)))
             } else {

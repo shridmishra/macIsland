@@ -8,6 +8,7 @@ import SwiftUI
 public struct MediaControlButtons: View {
     public let isPlaying: Bool
     public let isLyricsEnabled: Bool
+    public let showLyricsButton: Bool
     public let audioRouteIcon: String?
     public let onPrevious: () -> Void
     public let onTogglePlayPause: () -> Void
@@ -21,6 +22,7 @@ public struct MediaControlButtons: View {
     public init(
         isPlaying: Bool,
         isLyricsEnabled: Bool = false,
+        showLyricsButton: Bool = true,
         audioRouteIcon: String? = nil,
         onPrevious: @escaping () -> Void,
         onTogglePlayPause: @escaping () -> Void,
@@ -29,6 +31,7 @@ public struct MediaControlButtons: View {
     ) {
         self.isPlaying = isPlaying
         self.isLyricsEnabled = isLyricsEnabled
+        self.showLyricsButton = showLyricsButton
         self.audioRouteIcon = audioRouteIcon
         self.onPrevious = onPrevious
         self.onTogglePlayPause = onTogglePlayPause
@@ -38,20 +41,22 @@ public struct MediaControlButtons: View {
     
     public var body: some View {
         ZStack {
-            // Left side: Apple Music Lyrics Toggle Button
-            HStack {
-                Button(action: onToggleLyrics) {
-                    Image(systemName: isLyricsEnabled ? "quote.bubble.fill" : "quote.bubble")
-                        .font(.system(size: 13.5, weight: isLyricsEnabled ? .bold : .medium))
-                        .foregroundColor(isLyricsEnabled ? Color.islandTextPrimary : Color.white.opacity(hoverLyrics ? 0.85 : 0.48))
-                        .contentTransition(.symbolEffect(.replace))
+            // Left side: Lyrics Toggle Button (only displayed for music services)
+            if showLyricsButton {
+                HStack {
+                    Button(action: onToggleLyrics) {
+                        Image(systemName: isLyricsEnabled ? "quote.bubble.fill" : "quote.bubble")
+                            .font(.system(size: 13.5, weight: isLyricsEnabled ? .bold : .medium))
+                            .foregroundColor(isLyricsEnabled ? Color.islandTextPrimary : Color.white.opacity(hoverLyrics ? 0.85 : 0.48))
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    .buttonStyle(.springPress(scale: 0.88))
+                    .onHover { hoverLyrics = $0 }
+                    .help(isLyricsEnabled ? "Hide Lyrics" : "Show Lyrics")
+                    .padding(.leading, 8)
+                    
+                    Spacer()
                 }
-                .buttonStyle(.springPress(scale: 0.88))
-                .onHover { hoverLyrics = $0 }
-                .help(isLyricsEnabled ? "Hide Lyrics" : "Show Lyrics")
-                .padding(.leading, 8)
-                
-                Spacer()
             }
             
             // Centered playback buttons: Previous | Play/Pause | Next

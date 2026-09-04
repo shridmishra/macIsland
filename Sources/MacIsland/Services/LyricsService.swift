@@ -98,7 +98,7 @@ public actor LyricsService {
                 return nil
             }
             let item = try JSONDecoder().decode(LRCLIBResponse.self, from: data)
-            return convertResponse(item, fallbackTitle: title, fallbackArtist: artist)
+            return await convertResponse(item, fallbackTitle: title, fallbackArtist: artist)
         } catch {
             logger.debug("⚠️ [LyricsService] Direct get returned: \(error.localizedDescription)")
             return nil
@@ -142,7 +142,7 @@ public actor LyricsService {
                 bestCandidate = candidateList[0]
             }
             
-            return convertResponse(bestCandidate, fallbackTitle: title, fallbackArtist: artist)
+            return await convertResponse(bestCandidate, fallbackTitle: title, fallbackArtist: artist)
         } catch {
             logger.debug("⚠️ [LyricsService] Search fallback returned: \(error.localizedDescription)")
             return nil
@@ -150,10 +150,21 @@ public actor LyricsService {
     }
     
     // MARK: - Helper Converter
-    private func convertResponse(_ item: LRCLIBResponse, fallbackTitle: String, fallbackArtist: String) -> SongLyrics {
+    private func convertResponse(_ item: LRCLIBResponse, fallbackTitle: String, fallbackArtist: String) async -> SongLyrics {
         var parsedLines: [LyricLine] = []
         if let synced = item.syncedLyrics, !synced.isEmpty {
-            parsedLines = Self.parseLRC(synced)
+            parsedLines = await Self.parseLRCAsync(synced)
+        }
+        
+        var romanizedPlain: String? = nil
+        if let plain = item.plainLyrics {
+            if LyricsRomanizer.shared.containsNonLatin(plain) {
+                let lines = plain.components(separatedBy: .newlines)
+                let roman = await LyricsRomanizer.shared.romanizeBatch(lines)
+                romanizedPlain = roman.joined(separator: "\n")
+            } else {
+                romanizedPlain = plain
+            }
         }
         
         return SongLyrics(
@@ -162,12 +173,56 @@ public actor LyricsService {
             duration: item.duration ?? 0,
             isInstrumental: item.instrumental ?? false,
             lines: parsedLines,
-            plainLyrics: item.plainLyrics
+            plainLyrics: item.plainLyrics,
+            romanizedPlainLyrics: romanizedPlain
         )
     }
     
     // MARK: - LRC Parser
-    /// Parses LRC formatted text (e.g. "[00:15.30] Lyric line text") into an array of LyricLine
+    /// Parses LRC formatted text with neural batch transliteration for full accuracy & vowel restoration.
+    public nonisolated static func parseLRCAsync(_ lrcString: String) async -> [LyricLine] {
+        var rawEntries: [(timestamp: TimeInterval, text: String)] = []
+        let rawLines = lrcString.components(separatedBy: .newlines)
+        
+        for rawLine in rawLines {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("[") else { continue }
+            
+            var content = trimmed
+            var timestamps: [TimeInterval] = []
+            
+            while content.hasPrefix("["), let closeIndex = content.firstIndex(of: "]") {
+                let tag = String(content[content.index(after: content.startIndex)..<closeIndex])
+                if let seconds = parseTimestamp(tag) {
+                    timestamps.append(seconds)
+                }
+                content = String(content[content.index(after: closeIndex)...]).trimmingCharacters(in: .whitespaces)
+            }
+            
+            let lyricText = content.trimmingCharacters(in: .whitespaces)
+            if !timestamps.isEmpty {
+                for ts in timestamps {
+                    rawEntries.append((timestamp: ts, text: lyricText))
+                }
+            }
+        }
+        
+        guard !rawEntries.isEmpty else { return [] }
+        
+        let texts = rawEntries.map { $0.text }
+        let romanizedTexts = await LyricsRomanizer.shared.romanizeBatch(texts)
+        
+        var lines: [LyricLine] = []
+        for (i, entry) in rawEntries.enumerated() {
+            let orig = entry.text
+            let roman = (i < romanizedTexts.count) ? romanizedTexts[i] : (LyricsRomanizer.shared.containsNonLatin(orig) ? LyricsRomanizer.shared.romanize(orig) : orig)
+            lines.append(LyricLine(timestamp: entry.timestamp, text: roman, originalText: orig, romanizedText: roman))
+        }
+        
+        return lines.sorted { $0.timestamp < $1.timestamp }
+    }
+    
+    /// Synchronous fallback LRC parser
     public nonisolated static func parseLRC(_ lrcString: String) -> [LyricLine] {
         var lines: [LyricLine] = []
         let rawLines = lrcString.components(separatedBy: .newlines)
@@ -190,8 +245,9 @@ public actor LyricsService {
             
             let lyricText = content.trimmingCharacters(in: .whitespaces)
             if !timestamps.isEmpty {
+                let romanized = LyricsRomanizer.shared.containsNonLatin(lyricText) ? LyricsRomanizer.shared.romanize(lyricText) : lyricText
                 for ts in timestamps {
-                    lines.append(LyricLine(timestamp: ts, text: lyricText))
+                    lines.append(LyricLine(timestamp: ts, text: romanized, originalText: lyricText, romanizedText: romanized))
                 }
             }
         }

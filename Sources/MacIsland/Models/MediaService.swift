@@ -52,6 +52,26 @@ public enum MediaService: String, CaseIterable, Sendable {
         }
     }
     
+    /// Returns true if this service primarily streams music / songs
+    public var isMusicService: Bool {
+        switch self {
+        case .spotify, .appleMusic, .youtubeMusic, .amazonMusic, .jioSaavn, .gaana, .soundcloud:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// Returns true if this service primarily streams video / movies / shows / live streams
+    public var isVideoService: Bool {
+        switch self {
+        case .primeVideo, .netflix, .disneyPlus, .appleTV, .twitch, .youtube:
+            return true
+        default:
+            return false
+        }
+    }
+    
     /// Common URL domain substrings associated with this streaming service
     public var domainKeywords: [String] {
         switch self {
@@ -66,7 +86,7 @@ public enum MediaService: String, CaseIterable, Sendable {
         case .netflix:
             return ["netflix.com"]
         case .primeVideo:
-            return ["primevideo.com", "amazon.com/gp/video"]
+            return ["primevideo.com", "primevideo", "prime-video", "amazon.com/gp/video", "amazon.in/gp/video", "amazon."]
         case .amazonMusic:
             return ["music.amazon"]
         case .appleMusic:
@@ -76,7 +96,7 @@ public enum MediaService: String, CaseIterable, Sendable {
         case .gaana:
             return ["gaana.com"]
         case .disneyPlus:
-            return ["disneyplus.com", "hotstar.com"]
+            return ["disneyplus.com", "hotstar.com", "disney-plus"]
         case .soundcloud:
             return ["soundcloud.com"]
         case .twitch:
@@ -101,7 +121,7 @@ public enum MediaService: String, CaseIterable, Sendable {
     ]
     
     /// Detects the underlying media service from title, album, artist, and bundle ID,
-    /// and strips unnecessary brand prefixes from the track title.
+    /// and strips unnecessary brand prefixes/suffixes from the track title.
     public static func detect(
         title: String,
         album: String = "",
@@ -111,6 +131,8 @@ public enum MediaService: String, CaseIterable, Sendable {
     ) -> (service: MediaService, cleanedTitle: String, extractedAuthor: String?) {
         let combined = "\(title) \(album) \(artist) \(appName)".lowercased()
         let isBrowser = bundleId.map { browserBundleIds.contains($0) } ?? false
+        let lowerBundleId = bundleId?.lowercased() ?? ""
+        let lowerAppName = appName.lowercased()
         
         // 0. X (Twitter)
         if combined.contains("on x: ") || combined.contains(" / x") || combined.contains("on twitter: ") || combined.contains(" / twitter") || combined.contains("x.com") || combined.contains("twitter.com") {
@@ -119,26 +141,28 @@ public enum MediaService: String, CaseIterable, Sendable {
         }
         
         // 1. Prime Video
-        if combined.contains("prime video") || combined.contains("amazon prime") || combined.contains("primevideo") {
-            let clean = cleanPrefix(title, prefix: "Prime Video: ")
+        if combined.contains("prime video") || combined.contains("amazon prime") || combined.contains("primevideo") ||
+           combined.contains("prime-video") || lowerBundleId.contains("primevideo") || lowerBundleId.contains("aiv") ||
+           lowerAppName.contains("prime video") {
+            let clean = cleanServiceTitle(title)
             return (.primeVideo, clean, nil)
         }
         
         // 2. Netflix
-        if combined.contains("netflix") {
-            let clean = cleanPrefix(title, prefix: "Netflix: ")
+        if combined.contains("netflix") || lowerBundleId.contains("netflix") || lowerAppName.contains("netflix") {
+            let clean = cleanServiceTitle(title)
             return (.netflix, clean, nil)
         }
         
         // 3. YouTube Music
         if combined.contains("youtube music") || combined.contains("music.youtube") {
-            let clean = cleanPrefix(title, prefix: "YouTube Music: ")
+            let clean = cleanServiceTitle(title)
             return (.youtubeMusic, clean, nil)
         }
         
         // 4. YouTube (videos, channels)
         if combined.contains("youtube") || combined.contains("youtu.be") {
-            let clean = cleanPrefix(title, prefix: "YouTube: ")
+            let clean = cleanServiceTitle(title)
             return (.youtube, clean, nil)
         }
         
@@ -163,8 +187,10 @@ public enum MediaService: String, CaseIterable, Sendable {
         }
         
         // 9. Disney+
-        if combined.contains("disney+") || combined.contains("disneyplus") || combined.contains("hotstar") {
-            return (.disneyPlus, title, nil)
+        if combined.contains("disney+") || combined.contains("disneyplus") || combined.contains("disney plus") ||
+           combined.contains("hotstar") || lowerBundleId.contains("disney") || lowerAppName.contains("disney") {
+            let clean = cleanServiceTitle(title)
+            return (.disneyPlus, clean, nil)
         }
         
         // 10. SoundCloud
@@ -183,7 +209,7 @@ public enum MediaService: String, CaseIterable, Sendable {
                 return (.appleMusic, title, nil)
             } else if appName.contains("Spotify") {
                 return (.spotify, title, nil)
-            } else if appName.contains("TV") {
+            } else if appName.contains("TV") || lowerBundleId.contains("tv") {
                 return (.appleTV, title, nil)
             }
         }
@@ -239,5 +265,36 @@ public enum MediaService: String, CaseIterable, Sendable {
             return String(title.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
         }
         return title
+    }
+    
+    private static func cleanSuffix(_ title: String, suffix: String) -> String {
+        if title.hasSuffix(suffix) {
+            return String(title.dropLast(suffix.count)).trimmingCharacters(in: .whitespaces)
+        }
+        return title
+    }
+    
+    public static func cleanServiceTitle(_ title: String) -> String {
+        var clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        let prefixes = [
+            "Prime Video: ", "Netflix: ", "YouTube Music: ", "YouTube: ",
+            "Watch ", "Amazon Prime: "
+        ]
+        for p in prefixes {
+            clean = cleanPrefix(clean, prefix: p)
+        }
+        
+        let suffixes = [
+            " - Prime Video", " | Prime Video", " (Prime Video)",
+            " - Netflix", " | Netflix",
+            " - YouTube", " | YouTube",
+            " - Disney+", " | Disney+", " - Disney+ Hotstar", " | Hotstar",
+            " - YouTube Music", " | YouTube Music"
+        ]
+        for s in suffixes {
+            clean = cleanSuffix(clean, suffix: s)
+        }
+        return clean
     }
 }

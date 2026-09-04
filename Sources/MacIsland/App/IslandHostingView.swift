@@ -100,15 +100,28 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
             let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
             islandRect = NSRect(x: x, y: y, width: w, height: h + 2)
         } else if WindowManager.shared.hasNotch {
-            let leftW: CGFloat = 44.0
-            let notchW = WindowManager.shared.notchWidth
-            let rightW = WindowManager.shared.currentRightWingWidth
-            
-            // Pinned precisely to the left of the physical camera notch:
-            let x = centerX - notchW / 2.0 - leftW
-            let totalW = leftW + notchW + rightW
-            let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
-            islandRect = NSRect(x: x, y: y, width: totalW, height: h + 2)
+            let isPlaying = MediaManager.shared.playbackState.isPlaying
+            let isHUD = SystemHUDManager.shared.isHUDActive
+            if isPlaying || isHUD {
+                let leftW: CGFloat = 44.0
+                let notchW = WindowManager.shared.notchWidth
+                let rightW = WindowManager.shared.currentRightWingWidth
+                
+                // Pinned precisely to the left of the physical camera notch:
+                let x = centerX - notchW / 2.0 - leftW
+                let totalW = leftW + notchW + rightW
+                let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
+                islandRect = NSRect(x: x, y: y, width: totalW, height: h + 2)
+            } else {
+                // When idle / nothing playing:
+                // Generous hover target over the camera notch so moving cursor towards notch effortlessly triggers expansion!
+                let notchW = WindowManager.shared.notchWidth
+                let hoverPad: CGFloat = 16.0
+                let totalW = notchW + hoverPad * 2
+                let x = centerX - totalW / 2.0
+                let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 8)
+                islandRect = NSRect(x: x, y: y, width: totalW, height: h + 10)
+            }
         } else {
             let w = WindowManager.shared.collapsedWidth
             let x = centerX - w / 2.0

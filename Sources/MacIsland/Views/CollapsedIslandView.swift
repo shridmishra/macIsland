@@ -15,7 +15,6 @@ public struct CollapsedIslandView: View {
     @ObservedObject private var lyricsManager = LyricsManager.shared
     @ObservedObject private var hudManager = SystemHUDManager.shared
     @ObservedObject private var mediaManager = MediaManager.shared
-    @ObservedObject private var pomodoroManager = PomodoroManager.shared
     
     public init(item: MediaItem?, isPlaying: Bool, namespace: Namespace.ID) {
         self.item = item
@@ -24,13 +23,7 @@ public struct CollapsedIslandView: View {
     }
     
     private var isLyricsActive: Bool {
-        lyricsManager.isLyricsEnabled
-    }
-    
-    private var currentDateShort: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: Date())
+        isPlaying && lyricsManager.isLyricsEnabled && (item?.service.isVideoService != true)
     }
     
     public var body: some View {
@@ -87,30 +80,27 @@ public struct CollapsedIslandView: View {
                         }
                         .transition(.scale.combined(with: .opacity))
                     } else if let item = item {
-                        if mediaManager.isTransitioning {
-                            SkeletonArtworkView(size: 16, cornerRadius: 4)
-                                .transition(.opacity)
+                        if isPlaying {
+                            let isTitleEmpty = item.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            if mediaManager.isTransitioning || (item.artworkData == nil && isTitleEmpty) {
+                                SkeletonArtworkView(size: 16, cornerRadius: 4)
+                                    .transition(.opacity)
+                            } else {
+                                ArtworkImageView(item: item, size: 16, cornerRadius: 4)
+                                    .matchedGeometryEffect(id: "islandArtwork", in: namespace)
+                                    .onTapGesture {
+                                        MediaManager.shared.openCurrentSource()
+                                    }
+                                    .transition(.opacity)
+                            }
                         } else {
-                            ArtworkImageView(item: item, size: 16, cornerRadius: 4)
-                                .matchedGeometryEffect(id: "islandArtwork", in: namespace)
-                                .onTapGesture {
-                                    MediaManager.shared.openCurrentSource()
-                                }
-                                .transition(.opacity)
+                            EmptyView()
                         }
-                    } else {
-                        // Left Wing Nothing State: White capsule pill matching screenshot UI
-                        Text(pomodoroManager.formattedPillTime)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundColor(Color.islandPillText)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1.5)
-                            .background(
-                                Capsule()
-                                    .fill(Color.islandPillBackground)
-                            )
+                    } else if mediaManager.isTransitioning && isPlaying {
+                        SkeletonArtworkView(size: 16, cornerRadius: 4)
                             .transition(.opacity)
+                    } else {
+                        EmptyView()
                     }
                 }
                 .offset(y: -2) // Nudged upwards for optical balance
@@ -206,25 +196,28 @@ public struct CollapsedIslandView: View {
                                 .transition(.opacity)
                             }
                         } else if let item = item {
-                            let pulseColors = isPlaying ? item.pulseColors : item.pulseColors.map { $0.opacity(0.75) }
+                            if isPlaying {
+                                let isTitleEmpty = item.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                let pulseColors = item.pulseColors
+                                AudioWaveformIndicator(
+                                    isPlaying: isPlaying,
+                                    colors: isTitleEmpty ? [Color.islandTextTertiary] : pulseColors
+                                )
+                                .matchedGeometryEffect(id: "islandWaveform", in: namespace)
+                                .animation(.easeInOut(duration: 0.25), value: isPlaying)
+                                .transition(.opacity)
+                            } else {
+                                EmptyView()
+                            }
+                        } else if mediaManager.isTransitioning && isPlaying {
                             AudioWaveformIndicator(
-                                isPlaying: isPlaying,
-                                colors: pulseColors
+                                isPlaying: false,
+                                colors: [Color.islandTextTertiary]
                             )
                             .matchedGeometryEffect(id: "islandWaveform", in: namespace)
-                            .animation(.easeInOut(duration: 0.25), value: isPlaying)
                             .transition(.opacity)
                         } else {
-                            // Right Wing Nothing State: Calendar Date indicator
-                            HStack(spacing: 2.5) {
-                                Image(systemName: "calendar")
-                                    .font(.system(size: 9, weight: .semibold))
-                                    .foregroundColor(Color.islandTextSecondary)
-                                Text("\(Calendar.current.component(.day, from: Date()))")
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundColor(Color.islandTextPrimary)
-                            }
-                            .transition(.opacity)
+                            EmptyView()
                         }
                     }
                     .offset(y: -2) // Nudged upwards for optical balance
@@ -299,7 +292,9 @@ public struct CollapsedIslandView: View {
                     }
                 }
             } else if let item = item {
-                if mediaManager.isTransitioning {
+                let isTitleEmpty = item.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                let showSkeleton = mediaManager.isTransitioning || isTitleEmpty
+                if showSkeleton || (item.artworkData == nil && isTitleEmpty) {
                     SkeletonArtworkView(size: 16, cornerRadius: 4)
                 } else {
                     ArtworkImageView(item: item, size: 16, cornerRadius: 4)
@@ -312,7 +307,7 @@ public struct CollapsedIslandView: View {
                 if isLyricsActive {
                     TopLyricsView(isPlaying: isPlaying, maxWidth: 200)
                         .transition(.opacity)
-                } else if mediaManager.isTransitioning {
+                } else if showSkeleton {
                     SkeletonTextLine(width: 80, height: 10)
                 } else {
                     let pulseColors = isPlaying ? item.pulseColors : item.pulseColors.map { $0.opacity(0.75) }
@@ -335,32 +330,11 @@ public struct CollapsedIslandView: View {
                     )
                     .matchedGeometryEffect(id: "islandWaveform", in: namespace)
                 }
+            } else if mediaManager.isTransitioning {
+                SkeletonArtworkView(size: 16, cornerRadius: 4)
+                SkeletonTextLine(width: 80, height: 10)
             } else {
-                // Non-Notched Screen Nothing State: White pill matching screenshot + Calendar date
-                Text(pomodoroManager.formattedPillTime)
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(Color.islandPillText)
-                    .padding(.horizontal, 5.5)
-                    .padding(.vertical, 1.5)
-                    .background(
-                        Capsule()
-                            .fill(Color.islandPillBackground)
-                    )
-                
-                Circle()
-                    .fill(Color.islandDivider)
-                    .frame(width: 3, height: 3)
-                
-                HStack(spacing: 3) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 9.5, weight: .semibold))
-                        .foregroundColor(Color.islandTextSecondary)
-                    
-                    Text(currentDateShort)
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .foregroundColor(Color.islandTextPrimary)
-                }
+                EmptyView()
             }
         }
         .padding(.horizontal, 10)

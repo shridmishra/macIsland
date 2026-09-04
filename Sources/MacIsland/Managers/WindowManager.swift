@@ -50,7 +50,8 @@ public final class WindowManager: ObservableObject {
             }
             return 84.0
         }
-        guard LyricsManager.shared.isLyricsEnabled else {
+        guard LyricsManager.shared.isLyricsEnabled,
+              MediaManager.shared.playbackState.isPlaying else {
             return 44.0
         }
         
@@ -88,6 +89,13 @@ public final class WindowManager: ObservableObject {
     /// Left wing (44pt) + Notch (156pt) + Right wing (currentRightWingWidth)
     public var collapsedWidth: CGFloat {
         if let screen = targetScreen, screen.hasNotch {
+            let isPlaying = MediaManager.shared.playbackState.isPlaying
+            let isHUD = SystemHUDManager.shared.isHUDActive
+            if !isPlaying && !isHUD {
+                // When idle / not playing, the collapsed pill matches the hardware notch width exactly!
+                // Zero wings extend outward beyond the notch.
+                return screen.notchWidth
+            }
             return screen.notchWidth + 44 + currentRightWingWidth
         }
         if SystemHUDManager.shared.isHUDActive {
@@ -96,7 +104,7 @@ public final class WindowManager: ObservableObject {
             }
             return 170.0
         }
-        let isLyricsActive = LyricsManager.shared.isLyricsEnabled && (LyricsManager.shared.hasLyrics || LyricsManager.shared.isLoading)
+        let isLyricsActive = LyricsManager.shared.isLyricsEnabled && MediaManager.shared.playbackState.isPlaying && (LyricsManager.shared.hasLyrics || LyricsManager.shared.isLoading)
         return isLyricsActive ? max(180, currentRightWingWidth + 30) : 180
     }
     
@@ -109,22 +117,18 @@ public final class WindowManager: ObservableObject {
         return 28.0
     }
     
-    /// Expanded width: calibrated for optimal breathing room in both media and productivity states
+    /// Expanded width: calibrated for optimal breathing room
     public var expandedWidth: CGFloat {
-        if MediaManager.shared.currentItem == nil {
-            return 450.0
-        }
-        return 374.0
+        374.0
     }
     
-    /// Expanded height: calibrated with reduced top padding and increased bottom clearance
+    /// Expanded height: calibrated with reduced top padding and comfortable clearance
     public var expandedHeight: CGFloat {
-        let isNothingState = MediaManager.shared.currentItem == nil
+        let isNothing = MediaManager.shared.currentItem == nil
         if let screen = targetScreen, screen.hasNotch {
-            let baseHeight: CGFloat = isNothingState ? 178.0 : 124.0
-            return screen.notchHeight + baseHeight
+            return screen.notchHeight + (isNothing ? 148.0 : 124.0)
         }
-        return isNothingState ? 204.0 : 150.0
+        return isNothing ? 168.0 : 150.0
     }
     
     /// Reduced top padding: content sits 6pt cleanly below the camera notch without excessive empty space
@@ -147,34 +151,6 @@ public final class WindowManager: ObservableObject {
             }
             .store(in: &cancellables)
             
-        LyricsManager.shared.$currentLine
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-            
-        LyricsManager.shared.$isLoading
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-            
-        LyricsManager.shared.$showNoLyricsNotice
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-            
-        LyricsManager.shared.$isLyricsEnabled
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-            
         MediaManager.shared.$currentItem
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -182,7 +158,14 @@ public final class WindowManager: ObservableObject {
             }
             .store(in: &cancellables)
             
-        PomodoroManager.shared.$timerState
+        MediaManager.shared.$isTransitioning
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+            
+        MediaManager.shared.$playbackState
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()

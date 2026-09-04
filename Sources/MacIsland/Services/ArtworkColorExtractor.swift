@@ -27,7 +27,15 @@ public final class ArtworkColorExtractor: @unchecked Sendable {
             return cached.map { Color(nsColor: $0) }
         }
         
-        // 1. Album Artwork
+        // 1. Recognized Video Streaming Service: strictly prioritize iconic brand pulse colors
+        // (Prime Video Cyan Blue, Netflix Red, Disney+ Royal Blue, etc.) so video scene frames don't distort it!
+        if item.service.isVideoService {
+            let srvPalette = servicePalette(for: item.service)
+            paletteCache.setObject(srvPalette as NSArray, forKey: cacheKey as NSString)
+            return srvPalette.map { Color(nsColor: $0) }
+        }
+        
+        // 2. Album Artwork (for Music items)
         if let data = item.artworkData,
            let image = NSImage(data: data) {
             let extracted = dominantPalette(from: image)
@@ -37,14 +45,14 @@ public final class ArtworkColorExtractor: @unchecked Sendable {
             }
         }
         
-        // 2. Recognized Streaming Service
+        // 3. Recognized Music Streaming Service
         if item.service != .generic {
             let srvPalette = servicePalette(for: item.service)
             paletteCache.setObject(srvPalette as NSArray, forKey: cacheKey as NSString)
             return srvPalette.map { Color(nsColor: $0) }
         }
         
-        // 3. Application Icon (Brave, Chrome, Safari, etc.)
+        // 4. Application Icon (Brave, Chrome, Safari, etc.)
         if let appIcon = appIcon(for: item.bundleIdentifier, appName: item.application) {
             let extracted = dominantPalette(from: appIcon)
             if !extracted.isEmpty {
@@ -53,7 +61,7 @@ public final class ArtworkColorExtractor: @unchecked Sendable {
             }
         }
         
-        // 4. Default Fallback Palette (Approved fluid harmonic gradient: rich crimson -> flame orange -> golden amber -> soft peach glow)
+        // 5. Default Fallback Palette (Approved fluid harmonic gradient: rich crimson -> flame orange -> golden amber -> soft peach glow)
         let fallbackPalette: [NSColor] = [
             NSColor(srgbRed: 0.70, green: 0.22, blue: 0.15, alpha: 1.0),
             NSColor(srgbRed: 0.95, green: 0.40, blue: 0.18, alpha: 1.0),
@@ -106,6 +114,13 @@ public final class ArtworkColorExtractor: @unchecked Sendable {
                 NSColor(srgbRed: 0.00, green: 0.66, blue: 0.88, alpha: 1.0), // Prime Blue #00A8E1
                 NSColor(srgbRed: 0.35, green: 0.85, blue: 1.00, alpha: 1.0), // Electric Cyan
                 NSColor(srgbRed: 0.88, green: 0.96, blue: 1.00, alpha: 1.0)  // Ice Blue Highlight
+            ]
+        case .disneyPlus:
+            return [
+                NSColor(srgbRed: 0.02, green: 0.15, blue: 0.45, alpha: 1.0), // Deep Midnight Navy
+                NSColor(srgbRed: 0.07, green: 0.39, blue: 0.90, alpha: 1.0), // Disney+ Royal Blue #0063E5
+                NSColor(srgbRed: 0.25, green: 0.65, blue: 1.00, alpha: 1.0), // Radiant Sky Blue
+                NSColor(srgbRed: 0.85, green: 0.94, blue: 1.00, alpha: 1.0)  // Luminous Glow
             ]
         case .soundcloud:
             return [

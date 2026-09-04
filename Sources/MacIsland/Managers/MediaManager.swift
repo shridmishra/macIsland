@@ -26,6 +26,7 @@ public final class MediaManager: ObservableObject {
     private var lastSeekDate: Date?
     private var lastSeekTargetSeconds: Double?
     private var transitionWorkItem: DispatchWorkItem?
+    private var teardownWorkItem: DispatchWorkItem?
     private let logger = Logger(subsystem: "com.macisland.app", category: "MediaManager")
     
     public init(provider: NowPlayingProvider = MediaRemoteProvider()) {
@@ -45,27 +46,63 @@ public final class MediaManager: ObservableObject {
     
     private func updateMediaItem(_ item: MediaItem?) {
         guard let newItem = item else {
-            self.currentItem = nil
-            self.playbackState = .stopped
-            self.interpolatedProgress = 0.0
-            self.formattedCurrentTime = "0:00"
-            self.formattedDuration = "0:00"
-            self.formattedRemainingTime = "-0:00"
-            self.isTransitioning = false
-            self.transitionWorkItem?.cancel()
+            // When seeking or fast forwarding, audio stops playing for ~1 second while buffering
+            // and MediaRemote temporarily drops metadata. Do not immediately destroy currentItem!
+            if self.currentItem != nil {
+                if self.teardownWorkItem == nil {
+                    // Mark playback as paused while audio doesn't play for a sec
+                    self.playbackState = .paused
+                    
+                    let isRecentSeek = (self.lastSeekDate != nil && Date().timeIntervalSince(self.lastSeekDate!) < 4.0)
+                    let gracePeriod: TimeInterval = isRecentSeek ? 4.0 : 3.0
+                    
+                    let workItem = DispatchWorkItem { [weak self] in
+                        guard let self = self else { return }
+                        self.logger.info("🛑 [MediaManager] Teardown grace period elapsed — resetting media state.")
+                        self.currentItem = nil
+                        self.playbackState = .stopped
+                        self.interpolatedProgress = 0.0
+                        self.formattedCurrentTime = "0:00"
+                        self.formattedDuration = "0:00"
+                        self.formattedRemainingTime = "-0:00"
+                        self.isTransitioning = false
+                        self.transitionWorkItem?.cancel()
+                        self.teardownWorkItem = nil
+                    }
+                    self.teardownWorkItem = workItem
+                    DispatchQueue.main.asyncAfter(deadline: .now() + gracePeriod, execute: workItem)
+                }
+            } else {
+                self.playbackState = .stopped
+                self.isTransitioning = false
+            }
             return
+        }
+        
+        // Active item arrived — cancel teardown grace period
+        if let pending = self.teardownWorkItem {
+            pending.cancel()
+            self.teardownWorkItem = nil
+            self.logger.info("▶️ [MediaManager] Active track received, cancelled teardown timer.")
         }
         
         // Detect a genuine track change (different song) to trigger skeleton loading
         let isTrackChange: Bool
         if let existing = self.currentItem {
-            isTrackChange = existing.title != newItem.title
+            let newTitleClean = newItem.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let existingTitleClean = existing.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if newTitleClean.isEmpty && !existingTitleClean.isEmpty {
+                // Temporary blank title during seek/buffer — not a genuine track change!
+                isTrackChange = false
+            } else {
+                isTrackChange = existingTitleClean != newTitleClean
+            }
         } else {
             // First track arriving — show skeleton briefly while artwork loads
             isTrackChange = true
         }
         
-        if isTrackChange {
+        if isTrackChange && newItem.isPlaying {
             // Cancel any pending transition clear
             transitionWorkItem?.cancel()
             
@@ -82,6 +119,8 @@ public final class MediaManager: ObservableObject {
             } else {
                 self.isTransitioning = false
             }
+        } else {
+            self.isTransitioning = false
         }
         
         // 1. Retain previously resolved service
@@ -165,11 +204,39 @@ public final class MediaManager: ObservableObject {
             resolvedLastUpdated = Date()
         }
         
+        let resolvedTitle: String
+        let newTitleClean = newItem.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !newTitleClean.isEmpty {
+            resolvedTitle = newItem.title
+        } else if let existingTitle = self.currentItem?.title, !existingTitle.isEmpty {
+            resolvedTitle = existingTitle
+        } else {
+            resolvedTitle = ""
+        }
+        
+        let resolvedArtist: String
+        if !newItem.artist.isEmpty {
+            resolvedArtist = newItem.artist
+        } else if let existingArtist = self.currentItem?.artist, !existingArtist.isEmpty {
+            resolvedArtist = existingArtist
+        } else {
+            resolvedArtist = ""
+        }
+        
+        let resolvedAlbum: String
+        if !newItem.album.isEmpty {
+            resolvedAlbum = newItem.album
+        } else if let existingAlbum = self.currentItem?.album, !existingAlbum.isEmpty {
+            resolvedAlbum = existingAlbum
+        } else {
+            resolvedAlbum = ""
+        }
+        
         let mergedItem = MediaItem(
             id: newItem.id,
-            title: newItem.title,
-            artist: newItem.artist,
-            album: newItem.album,
+            title: resolvedTitle,
+            artist: resolvedArtist,
+            album: resolvedAlbum,
             artworkData: newItem.artworkData ?? self.currentItem?.artworkData,
             duration: resolvedDuration,
             currentTime: resolvedCurrentTime,
@@ -350,10 +417,16 @@ public final class MediaManager: ObservableObject {
     }
     
     public func nextTrack() {
+        teardownWorkItem?.cancel()
+        teardownWorkItem = nil
+        isTransitioning = true
         provider.nextTrack()
     }
     
     public func previousTrack() {
+        teardownWorkItem?.cancel()
+        teardownWorkItem = nil
+        isTransitioning = true
         provider.previousTrack()
     }
     
@@ -371,6 +444,10 @@ public final class MediaManager: ObservableObject {
         // 1. Set seek lock to prevent polling ticks from snapping back
         lastSeekDate = Date()
         lastSeekTargetSeconds = targetSeconds
+        
+        // Cancel any pending teardown immediately
+        teardownWorkItem?.cancel()
+        teardownWorkItem = nil
         
         // 2. Immediately update progress state so UI reflects scrub instantly
         interpolatedProgress = fraction
@@ -523,6 +600,8 @@ public final class MediaManager: ObservableObject {
     
     deinit {
         progressTicker?.invalidate()
+        transitionWorkItem?.cancel()
+        teardownWorkItem?.cancel()
         provider.stopObserving()
     }
 }

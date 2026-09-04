@@ -27,6 +27,14 @@ public final class LyricsManager: ObservableObject {
         }
     }
     
+    /// Romanization toggle state: defaults to true (Latin script in notch for Urdu, Punjabi, etc.)
+    @Published public var isRomanizationEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isRomanizationEnabled, forKey: "MacIsland.isRomanizationEnabled")
+            applyRomanizationPreference()
+        }
+    }
+    
     @Published public private(set) var currentLyrics: SongLyrics?
     @Published public private(set) var currentLine: LyricLine?
     @Published public private(set) var isLoading: Bool = false
@@ -42,12 +50,31 @@ public final class LyricsManager: ObservableObject {
     public init() {
         // Default to false (turned OFF)
         self.isLyricsEnabled = UserDefaults.standard.bool(forKey: "MacIsland.isLyricsEnabled")
+        // Default to true (turned ON for Latin script lyrics in notch)
+        if UserDefaults.standard.object(forKey: "MacIsland.isRomanizationEnabled") == nil {
+            self.isRomanizationEnabled = true
+        } else {
+            self.isRomanizationEnabled = UserDefaults.standard.bool(forKey: "MacIsland.isRomanizationEnabled")
+        }
         setupTrackObservation()
         startSyncTicker()
     }
     
     public func toggleLyrics() {
         isLyricsEnabled.toggle()
+    }
+    
+    public func toggleRomanization() {
+        isRomanizationEnabled.toggle()
+    }
+    
+    private func applyRomanizationPreference() {
+        guard let lyrics = currentLyrics else { return }
+        let updated = lyrics.withRomanization(isRomanizationEnabled)
+        self.currentLyrics = updated
+        if let line = currentLine {
+            self.currentLine = line.withRomanization(isRomanizationEnabled)
+        }
     }
     
     // MARK: - Track Observation
@@ -61,7 +88,9 @@ public final class LyricsManager: ObservableObject {
     }
     
     private func handleTrackChange(_ item: MediaItem?) {
-        guard let item = item, !item.title.isEmpty else {
+        guard let item = item, !item.title.isEmpty, !item.service.isVideoService else {
+            self.noLyricsTimer?.cancel()
+            self.showNoLyricsNotice = false
             self.currentLyrics = nil
             self.currentLine = nil
             self.hasLyrics = false
@@ -87,7 +116,10 @@ public final class LyricsManager: ObservableObject {
     }
     
     public func fetchCurrentTrackLyrics() {
-        guard let item = MediaManager.shared.currentItem, !item.title.isEmpty else { return }
+        guard let item = MediaManager.shared.currentItem, !item.title.isEmpty, !item.service.isVideoService else {
+            self.isLoading = false
+            return
+        }
         
         let title = item.title
         let artist = item.artist
@@ -113,16 +145,17 @@ public final class LyricsManager: ObservableObject {
                 guard self.currentTrackKey == expectedKey else { return }
                 
                 if let result = result {
-                    self.currentLyrics = result
-                    self.hasLyrics = !result.lines.isEmpty || (result.plainLyrics != nil) || result.isInstrumental
+                    let configuredLyrics = result.withRomanization(self.isRomanizationEnabled)
+                    self.currentLyrics = configuredLyrics
+                    self.hasLyrics = !configuredLyrics.lines.isEmpty || (configuredLyrics.plainLyrics != nil) || configuredLyrics.isInstrumental
                     self.updateCurrentLine(for: MediaManager.shared.currentItem)
-                    self.logger.info("✅ [LyricsManager] Loaded lyrics with \(result.lines.count) lines for '\(title, privacy: .public)'")
+                    self.logger.info("✅ [LyricsManager] Loaded lyrics with \(configuredLyrics.lines.count) lines for '\(title, privacy: .public)'")
                 } else {
                     self.currentLyrics = nil
                     self.currentLine = nil
                     self.hasLyrics = false
                     self.logger.info("ℹ️ [LyricsManager] No lyrics found for '\(title, privacy: .public)'")
-                    if self.isLyricsEnabled {
+                    if self.isLyricsEnabled && !(MediaManager.shared.currentItem?.service.isVideoService ?? false) {
                         self.triggerNoLyricsNotice()
                     }
                 }
@@ -132,6 +165,7 @@ public final class LyricsManager: ObservableObject {
     
     /// Shows "No lyrics" text for 5 seconds, then gracefully reverts to the audio waveform pulse
     public func triggerNoLyricsNotice() {
+        guard !(MediaManager.shared.currentItem?.service.isVideoService ?? false) else { return }
         noLyricsTimer?.cancel()
         showNoLyricsNotice = true
         noLyricsTimer = Task { @MainActor [weak self] in
@@ -157,32 +191,26 @@ public final class LyricsManager: ObservableObject {
     }
     
     private func updateCurrentLine(for item: MediaItem?) {
-        guard let item = item, let lyrics = currentLyrics else {
+        guard let item = item, !item.service.isVideoService, let lyrics = currentLyrics else {
             if currentLine != nil {
-                withAnimation(IslandAnimation.notchSpring) {
-                    currentLine = nil
-                }
+                currentLine = nil
             }
             return
         }
         
         if lyrics.isInstrumental {
             if currentLine?.text != "Instrumental" {
-                withAnimation(IslandAnimation.notchSpring) {
-                    currentLine = LyricLine(timestamp: 0, text: "Instrumental")
-                }
+                currentLine = LyricLine(timestamp: 0, text: "Instrumental")
             }
             return
         }
         
         guard !lyrics.lines.isEmpty else {
-            if let plain = lyrics.plainLyrics, !plain.isEmpty {
+            if let plain = lyrics.displayPlainLyrics(romanized: isRomanizationEnabled), !plain.isEmpty {
                 // If only plain lyrics exist, display non-synced note or first line
                 if currentLine == nil {
                     let firstLine = plain.components(separatedBy: .newlines).first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? plain
-                    withAnimation(IslandAnimation.notchSpring) {
-                        currentLine = LyricLine(timestamp: 0, text: firstLine)
-                    }
+                    currentLine = LyricLine(timestamp: 0, text: firstLine)
                 }
             }
             return
@@ -190,16 +218,14 @@ public final class LyricsManager: ObservableObject {
         
         // Natural vocal lead anticipation offset:
         // LRC timestamps specify the exact millisecond audio frequencies start.
-        // Adding 400ms anticipation ensures the line appears right as the singer
-        // begins the phrase, eliminating any perceived lag.
-        let anticipationLead: TimeInterval = 0.40
+        // Adding 650ms anticipation ensures the line enters and settles into crisp focus
+        // right as the singer begins the phrase, eliminating any perceived lag.
+        let anticipationLead: TimeInterval = 0.65
         let currentTime = item.currentProgress() + anticipationLead
         let matchingLine = lyrics.line(at: currentTime)
         
         if currentLine != matchingLine {
-            withAnimation(IslandAnimation.notchSpring) {
-                currentLine = matchingLine
-            }
+            currentLine = matchingLine
         }
     }
     

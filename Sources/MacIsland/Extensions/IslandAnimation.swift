@@ -12,11 +12,11 @@ public enum IslandAnimation {
     public static let notchSpring = Animation.spring(response: 0.40, dampingFraction: 0.82, blendDuration: 0.12)
     
     /// Smooth, responsive spring for synchronized lyrics text entry and exit.
-    /// Response 0.35s, dampingFraction 0.86, blendDuration 0.10.
-    public static let lyricsSpring = Animation.spring(response: 0.35, dampingFraction: 0.86, blendDuration: 0.10)
+    /// Snappy response (0.28s) ensures lyrics appear immediately on-beat without perceived lag.
+    public static let lyricsSpring = Animation.spring(response: 0.28, dampingFraction: 0.84, blendDuration: 0.08)
     
     /// Quick, snappy spring for state badges, loading indicators, and small icons.
-    public static let snappySpring = Animation.spring(response: 0.26, dampingFraction: 0.82)
+    public static let snappySpring = Animation.spring(response: 0.24, dampingFraction: 0.82)
 }
 
 // MARK: - Lyric Transition Modifier
@@ -46,17 +46,16 @@ public struct LyricTransitionModifier: ViewModifier {
 
 extension AnyTransition {
     /// Kinetic blur-slide transition for synchronized lyric lines:
-    /// - Entering line slides up from below (+7pt -> 0), defogging from 3.5pt blur to crisp focus.
-    /// - Departing line drifts upward (-7pt), dissolving into a 3.5pt blur mist.
-    /// Completely avoids glyph clashing and double-vision artifacts.
+    /// - Entering line glides up into place (+4.5pt -> 0) with a subtle defogging blur (1.5pt -> 0).
+    /// - Fast, snappy response ensures lyrics are immediately legible and on-beat.
     public static var lyricBlurSlide: AnyTransition {
         .asymmetric(
             insertion: .modifier(
-                active: LyricTransitionModifier(opacity: 0.0, offsetY: 7.0, blurRadius: 3.5, scale: 0.98),
+                active: LyricTransitionModifier(opacity: 0.0, offsetY: 4.5, blurRadius: 1.5, scale: 0.99),
                 identity: LyricTransitionModifier(opacity: 1.0, offsetY: 0.0, blurRadius: 0.0, scale: 1.0)
             ),
             removal: .modifier(
-                active: LyricTransitionModifier(opacity: 0.0, offsetY: -7.0, blurRadius: 3.5, scale: 0.98),
+                active: LyricTransitionModifier(opacity: 0.0, offsetY: -4.5, blurRadius: 2.0, scale: 0.99),
                 identity: LyricTransitionModifier(opacity: 1.0, offsetY: 0.0, blurRadius: 0.0, scale: 1.0)
             )
         )

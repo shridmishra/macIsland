@@ -66,7 +66,7 @@ public final class MediaRemoteCLIHelper: @unchecked Sendable {
         }
     }
     let start = Date()
-    while !done && Date().timeIntervalSince(start) < 1.2 {
+    while !done && Date().timeIntervalSince(start) < 1.8 {
         RunLoop.current.run(mode: .default, before: Date(timeIntervalSinceNow: 0.05))
     }
     exit(0)
@@ -101,17 +101,20 @@ public final class MediaRemoteCLIHelper: @unchecked Sendable {
                 }
                 
                 let title = json["title"] as? String ?? ""
-                guard !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    completion(nil)
-                    return
-                }
-                
                 let artist = json["artist"] as? String ?? ""
                 let album = json["album"] as? String ?? ""
+                let pid = json["pid"] as? pid_t ?? 0
                 let duration = json["duration"] as? Double ?? 0.0
                 let elapsedTime = json["elapsedTime"] as? Double ?? 0.0
                 let playbackRate = json["playbackRate"] as? Double ?? 0.0
-                let pid = json["pid"] as? pid_t ?? 0
+                
+                // If title is blank, only drop if there is no active player PID, duration, or playback
+                if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    guard pid > 0 || duration > 0 || playbackRate > 0 else {
+                        completion(nil)
+                        return
+                    }
+                }
                 let timestamp = json["timestamp"] as? Double ?? Date().timeIntervalSince1970
                 let lastUpdated = Date(timeIntervalSince1970: timestamp)
                 

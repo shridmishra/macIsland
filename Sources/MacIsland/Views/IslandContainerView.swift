@@ -33,7 +33,9 @@ public struct IslandContainerView: View {
         let isExpanded = windowManager.islandState.isExpanded
         let width = isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth
         let height = isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
-        let flareRadius: CGFloat = isExpanded ? 10 : 6
+        
+        let hasWings = windowManager.hasNotch && (mediaManager.playbackState.isPlaying || SystemHUDManager.shared.isHUDActive)
+        let flareRadius: CGFloat = isExpanded ? 10 : (hasWings ? 6 : 0)
         let bottomRadius: CGFloat = isExpanded ? 20 : 10
         let islandShape = NotchedIslandShape(flareRadius: flareRadius, bottomRadius: bottomRadius)
         
@@ -41,7 +43,7 @@ public struct IslandContainerView: View {
         // When collapsed on a notched display, the right wing expands to fit the full lyrics line.
         // Offsetting by +(rightWingWidth - 44)/2 mathematically guarantees that the left wing (artwork)
         // and the notch cutout remain 100% stationary and pinned flush against the physical camera cutout!
-        let xOffset: CGFloat = (windowManager.hasNotch && !isExpanded) ? (windowManager.currentRightWingWidth - 44.0) / 2.0 : 0.0
+        let xOffset: CGFloat = (hasWings && !isExpanded) ? (windowManager.currentRightWingWidth - 44.0) / 2.0 : 0.0
         
         ZStack(alignment: .top) {
             // Background black shape container (pure pitch black, seamless cutout blend, outward top curves)
@@ -85,6 +87,9 @@ public struct IslandContainerView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(IslandAnimation.notchSpring, value: isExpanded)
+        .animation(IslandAnimation.notchSpring, value: width)
+        .animation(IslandAnimation.notchSpring, value: height)
+        .animation(IslandAnimation.notchSpring, value: xOffset)
         .animation(IslandAnimation.notchSpring, value: width)
         .animation(IslandAnimation.notchSpring, value: height)
         .animation(IslandAnimation.notchSpring, value: xOffset)
