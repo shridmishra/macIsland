@@ -46,10 +46,14 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
         // Convert to local view coordinates before checking against island geometry.
         let localPoint = convert(point, from: nil)
         if isPointInIsland(localPoint) {
-            return super.hitTest(point)
+            return super.hitTest(point) ?? self
         }
         // Mouse event is outside the active island shape — pass through to underlying windows!
         return nil
+    }
+    
+    public override func mouseDown(with event: NSEvent) {
+        super.mouseDown(with: event)
     }
     
     // MARK: - Mouse Tracking
@@ -59,13 +63,9 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
         let isInside = isPointInIsland(point)
         
         if isInside && !WindowManager.shared.isHovered {
-            Task { @MainActor in
-                WindowManager.shared.setHovered(true)
-            }
+            WindowManager.shared.setHovered(true)
         } else if !isInside && WindowManager.shared.isHovered {
-            Task { @MainActor in
-                WindowManager.shared.setHovered(false)
-            }
+            WindowManager.shared.setHovered(false)
         }
     }
     
@@ -73,16 +73,120 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
         super.mouseEntered(with: event)
         let point = convert(event.locationInWindow, from: nil)
         if isPointInIsland(point) {
-            Task { @MainActor in
-                WindowManager.shared.setHovered(true)
-            }
+            WindowManager.shared.setHovered(true)
         }
     }
     
     public override func mouseExited(with event: NSEvent) {
         super.mouseExited(with: event)
-        Task { @MainActor in
-            WindowManager.shared.setHovered(false)
+        WindowManager.shared.setHovered(false)
+    }
+    
+    // MARK: - Trackpad Gestures (Swipe & Two-Finger Scroll)
+    
+    private var lastGestureTime = Date.distantPast
+    private var accumulatedDeltaX: CGFloat = 0.0
+    private var accumulatedDeltaY: CGFloat = 0.0
+    
+    public override func scrollWheel(with event: NSEvent) {
+        super.scrollWheel(with: event)
+        
+        let point = convert(event.locationInWindow, from: nil)
+        guard isPointInIsland(point) else { return }
+        
+        let now = Date()
+        guard now.timeIntervalSince(lastGestureTime) > 0.35 else { return }
+        
+        if event.phase == .began {
+            accumulatedDeltaX = 0
+            accumulatedDeltaY = 0
+        }
+        
+        accumulatedDeltaX += event.scrollingDeltaX
+        accumulatedDeltaY += event.scrollingDeltaY
+        
+        let isExpanded = WindowManager.shared.islandState.isExpanded
+        
+        if isExpanded {
+            // Check for vertical swipe up to collapse ("upside")
+            if accumulatedDeltaY > 24.0 {
+                lastGestureTime = now
+                accumulatedDeltaX = 0
+                accumulatedDeltaY = 0
+                Task { @MainActor in
+                    WindowManager.shared.collapse()
+                }
+                return
+            }
+            
+            // Check for horizontal two-finger swipe to change pages
+            if accumulatedDeltaX < -28.0 {
+                // Flicked left -> navigate forward (Media -> Timer)
+                lastGestureTime = now
+                accumulatedDeltaX = 0
+                accumulatedDeltaY = 0
+                Task { @MainActor in
+                    WindowManager.shared.nextPage()
+                }
+                return
+            } else if accumulatedDeltaX > 28.0 {
+                // Flicked right -> navigate backward (Timer -> Media)
+                lastGestureTime = now
+                accumulatedDeltaX = 0
+                accumulatedDeltaY = 0
+                Task { @MainActor in
+                    WindowManager.shared.previousPage()
+                }
+                return
+            }
+        } else {
+            // Collapsed state: Two-finger swipe down to expand
+            if accumulatedDeltaY < -24.0 {
+                lastGestureTime = now
+                accumulatedDeltaX = 0
+                accumulatedDeltaY = 0
+                Task { @MainActor in
+                    WindowManager.shared.expand()
+                }
+                return
+            }
+        }
+        
+        if event.phase == .ended || event.phase == .cancelled {
+            accumulatedDeltaX = 0
+            accumulatedDeltaY = 0
+        }
+    }
+    
+    public override func swipe(with event: NSEvent) {
+        super.swipe(with: event)
+        let point = convert(event.locationInWindow, from: nil)
+        guard isPointInIsland(point) else { return }
+        
+        let isExpanded = WindowManager.shared.islandState.isExpanded
+        if isExpanded {
+            if event.deltaY > 0 {
+                // Swipe up -> collapse
+                Task { @MainActor in
+                    WindowManager.shared.collapse()
+                }
+            } else if event.deltaX < 0 {
+                // Swipe left -> next page
+                Task { @MainActor in
+                    WindowManager.shared.nextPage()
+                }
+            } else if event.deltaX > 0 {
+                // Swipe right -> previous page
+                Task { @MainActor in
+                    WindowManager.shared.previousPage()
+                }
+            }
+        } else {
+            if event.deltaY < 0 {
+                Task { @MainActor in
+                    WindowManager.shared.expand()
+                }
+            }
         }
     }
     
@@ -90,6 +194,21 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
     private func isPointInIsland(_ point: NSPoint) -> Bool {
         let isExpanded = WindowManager.shared.islandState.isExpanded
         let h = isExpanded ? WindowManager.shared.expandedHeight : WindowManager.shared.collapsedHeight
+        
+        // Strict boundary protection: When collapsed, any point at or below the physical notch height
+        // is strictly in the underlying window's domain (e.g. Chrome tab strip). It must NEVER be captured.
+        if !isExpanded {
+            let effectiveMaxY = h - 1.0
+            if isFlipped {
+                if point.y >= effectiveMaxY {
+                    return false
+                }
+            } else {
+                if point.y <= (bounds.height - effectiveMaxY) {
+                    return false
+                }
+            }
+        }
         
         let centerX = bounds.width / 2.0
         let islandRect: NSRect
@@ -100,33 +219,33 @@ public final class IslandHostingView<Content: View>: NSHostingView<Content> {
             let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
             islandRect = NSRect(x: x, y: y, width: w, height: h + 2)
         } else if WindowManager.shared.hasNotch {
-            let isPlaying = MediaManager.shared.playbackState.isPlaying
-            let isHUD = SystemHUDManager.shared.isHUDActive
-            if isPlaying || isHUD {
-                let leftW: CGFloat = 44.0
+            let effectiveH = max(0, h - 1.0)
+            if WindowManager.shared.hasActiveWings {
+                let leftW = WindowManager.shared.currentLeftWingWidth
                 let notchW = WindowManager.shared.notchWidth
                 let rightW = WindowManager.shared.currentRightWingWidth
                 
                 // Pinned precisely to the left of the physical camera notch:
                 let x = centerX - notchW / 2.0 - leftW
                 let totalW = leftW + notchW + rightW
-                let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
-                islandRect = NSRect(x: x, y: y, width: totalW, height: h + 2)
+                let y: CGFloat = isFlipped ? -2 : (bounds.height - effectiveH)
+                islandRect = NSRect(x: x, y: y, width: totalW, height: isFlipped ? (effectiveH + 2) : effectiveH)
             } else {
-                // When idle / nothing playing:
-                // Generous hover target over the camera notch so moving cursor towards notch effortlessly triggers expansion!
+                // When idle / hidden in fullscreen:
+                // Camera notch target exactly matching physical notch, strictly clamped vertically
+                // to prevent any bleed into Chrome tabs or underlying application windows!
                 let notchW = WindowManager.shared.notchWidth
-                let hoverPad: CGFloat = 16.0
-                let totalW = notchW + hoverPad * 2
+                let totalW = notchW
                 let x = centerX - totalW / 2.0
-                let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 8)
-                islandRect = NSRect(x: x, y: y, width: totalW, height: h + 10)
+                let y: CGFloat = isFlipped ? -2 : (bounds.height - effectiveH)
+                islandRect = NSRect(x: x, y: y, width: totalW, height: isFlipped ? (effectiveH + 2) : effectiveH)
             }
         } else {
-            let w = WindowManager.shared.collapsedWidth
+            let effectiveH = max(0, h - 1.0)
+            let w = WindowManager.shared.hasActiveWings ? WindowManager.shared.collapsedWidth : 160.0
             let x = centerX - w / 2.0
-            let y: CGFloat = isFlipped ? -2 : (bounds.height - h - 2)
-            islandRect = NSRect(x: x, y: y, width: w, height: h + 2)
+            let y: CGFloat = isFlipped ? -2 : (bounds.height - effectiveH)
+            islandRect = NSRect(x: x, y: y, width: w, height: isFlipped ? (effectiveH + 2) : effectiveH)
         }
         
         return islandRect.contains(point)

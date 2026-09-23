@@ -32,7 +32,9 @@ public final class IslandPanel: NSPanel {
         self.hasShadow = false
         
         // Window level and space behavior
-        self.level = .statusBar
+        // Use .popUpMenu (level 101) so the notch overlay remains permanently visible
+        // above fullscreen spaces without being hidden by macOS WindowServer when the menu bar auto-hides.
+        self.level = .popUpMenu
         self.collectionBehavior = [
             .canJoinAllSpaces,
             .fullScreenAuxiliary,

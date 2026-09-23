@@ -24,9 +24,13 @@ const badgeVariants = cva(
         appleBlue:
           "bg-accent text-foreground border border-border-highlight",
         hud:
-          "bg-card text-foreground border border-border font-mono text-[11px]",
-        heroPink:
-          "bg-hero-pink-badge text-hero-pink-text border border-hero-pink-badge-border text-xs font-medium",
+          "bg-card text-foreground border border-border font-mono text-xs",
+        appleOrange:
+          "bg-apple-orange/15 text-apple-orange border border-apple-orange/30 text-xs font-semibold",
+        heroOrange:
+          "bg-hero-orange-badge text-hero-orange-text border border-hero-orange-badge-border text-xs font-medium",
+        version:
+          "border border-border text-muted-foreground bg-surface-elevated/80 text-[11px] px-2 py-0.5 font-mono rounded-md shadow-2xs",
       },
     },
     defaultVariants: {

@@ -13,7 +13,6 @@ import SwiftUI
 public struct IslandContainerView: View {
     @ObservedObject var windowManager: WindowManager
     @ObservedObject var mediaManager: MediaManager
-    @ObservedObject private var lyricsManager = LyricsManager.shared
     
     @Namespace private var islandNamespace
     
@@ -34,25 +33,27 @@ public struct IslandContainerView: View {
         let width = isExpanded ? windowManager.expandedWidth : windowManager.collapsedWidth
         let height = isExpanded ? windowManager.expandedHeight : windowManager.collapsedHeight
         
-        let hasWings = windowManager.hasNotch && (mediaManager.playbackState.isPlaying || SystemHUDManager.shared.isHUDActive)
-        let flareRadius: CGFloat = isExpanded ? 10 : (hasWings ? 6 : 0)
+        let isVisible = isExpanded || windowManager.hasActiveWings
+        let flareRadius: CGFloat = isExpanded ? 10 : 6
         let bottomRadius: CGFloat = isExpanded ? 20 : 10
         let islandShape = NotchedIslandShape(flareRadius: flareRadius, bottomRadius: bottomRadius)
         
-        // Pinned Notch & Artwork Alignment:
-        // When collapsed on a notched display, the right wing expands to fit the full lyrics line.
-        // Offsetting by +(rightWingWidth - 44)/2 mathematically guarantees that the left wing (artwork)
-        // and the notch cutout remain 100% stationary and pinned flush against the physical camera cutout!
-        let xOffset: CGFloat = (hasWings && !isExpanded) ? (windowManager.currentRightWingWidth - 44.0) / 2.0 : 0.0
+        // Pinned Notch Alignment:
+        // When collapsed on a notched display, the leading edge of the left wing is mathematically pinned
+        // immediately to the left of the physical camera notch (screenWidth - notchWidth)/2 - leftWingWidth.
+        // As lyrics expand or contract the right wing, leadingX remains 100% stationary so the left wing
+        // and artwork NEVER move, flip, or translate.
+        let leadingX = windowManager.currentIslandLeadingX
         
-        ZStack(alignment: .top) {
+        ZStack(alignment: .topLeading) {
             // Background black shape container (pure pitch black, seamless cutout blend, outward top curves)
-            ZStack(alignment: .top) {
+            ZStack(alignment: .topLeading) {
                 if isExpanded {
                     ExpandedIslandView(
                         mediaManager: mediaManager,
                         namespace: islandNamespace
                     )
+                    .frame(width: width, height: height)
                     .transition(
                         .asymmetric(
                             insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .top)),
@@ -65,6 +66,7 @@ public struct IslandContainerView: View {
                         isPlaying: mediaManager.playbackState.isPlaying,
                         namespace: islandNamespace
                     )
+                    .frame(width: width, height: height, alignment: .leading)
                     .transition(
                         .asymmetric(
                             insertion: .opacity,
@@ -73,25 +75,21 @@ public struct IslandContainerView: View {
                     )
                 }
             }
-            .frame(width: width, height: height)
+            .frame(width: width, height: height, alignment: .topLeading)
             .background(
                 islandShape
                     .fill(Color.black)
             )
             .clipShape(islandShape)
             .contentShape(islandShape)
-            .offset(x: xOffset)
-            .onHover { hovering in
-                windowManager.setHovered(hovering)
-            }
+            .offset(x: leadingX)
+            .opacity(isVisible ? 1.0 : 0.0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .animation(IslandAnimation.notchSpring, value: isExpanded)
         .animation(IslandAnimation.notchSpring, value: width)
         .animation(IslandAnimation.notchSpring, value: height)
-        .animation(IslandAnimation.notchSpring, value: xOffset)
-        .animation(IslandAnimation.notchSpring, value: width)
-        .animation(IslandAnimation.notchSpring, value: height)
-        .animation(IslandAnimation.notchSpring, value: xOffset)
+        .animation(IslandAnimation.notchSpring, value: leadingX)
+        .animation(IslandAnimation.notchSpring, value: isVisible)
     }
 }

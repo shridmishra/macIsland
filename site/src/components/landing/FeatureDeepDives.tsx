@@ -30,9 +30,8 @@ export function FeatureDeepDives() {
 
         {/* Screen Frame with Sonoma Wallpaper */}
         <div className="rounded-3xl border border-border shadow-2xl overflow-hidden relative aspect-[16/9] w-full mt-8 bg-card">
-          <Image
+          <Image alt="macOS Sonoma Desktop"
             src="/images/sonoma-wallpaper.webp"
-            alt="macOS Sonoma Desktop"
             fill
             className="object-cover object-center"
             sizes="(max-w-768px) 100vw, 1100px"
@@ -65,9 +64,8 @@ export function FeatureDeepDives() {
 
         {/* Screen Frame */}
         <div className="rounded-3xl border border-border shadow-2xl overflow-hidden relative aspect-[16/9] w-full mt-8 bg-card flex items-start justify-center pt-8">
-          <Image
+          <Image alt="macOS Sonoma Desktop"
             src="/images/sonoma-wallpaper.webp"
-            alt="macOS Sonoma Desktop"
             fill
             className="object-cover object-center"
             sizes="(max-w-768px) 100vw, 1100px"
@@ -90,7 +88,7 @@ export function FeatureDeepDives() {
             <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
               <div className="h-full w-2/3 bg-white rounded-full" />
             </div>
-            <div className="flex justify-between text-[10px] font-mono text-white/60">
+            <div className="flex justify-between text-xs font-mono text-white/60">
               <span>2:44</span>
               <span>-1:20</span>
             </div>
@@ -101,9 +99,9 @@ export function FeatureDeepDives() {
       {/* TESTIMONIAL 1 */}
       <div className="max-w-2xl mx-auto">
         <Card className="p-8 border border-border shadow-md bg-surface-elevated text-center relative overflow-hidden">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-semibold mb-4">
+          <Badge variant="appleOrange" className="mb-4">
             COMMUNITY HIGHLIGHT
-          </div>
+          </Badge>
           <p className="text-base sm:text-lg text-foreground font-medium leading-relaxed italic">
             &ldquo;I&apos;ve been using Mac Island for weeks and I LOVE it. It finally
             turns the MacBook notch into something truly functional and delightful.
@@ -115,7 +113,7 @@ export function FeatureDeepDives() {
             </div>
             <div className="text-left">
               <p className="text-xs font-semibold text-foreground">Evan</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Lead Designer &amp; Developer
               </p>
             </div>
@@ -136,9 +134,8 @@ export function FeatureDeepDives() {
 
         {/* Screen Frame */}
         <div className="rounded-3xl border border-border shadow-2xl overflow-hidden relative aspect-[16/9] w-full mt-8 bg-card flex items-center justify-center">
-          <Image
+          <Image alt="macOS Sonoma Desktop"
             src="/images/sonoma-wallpaper.webp"
-            alt="macOS Sonoma Desktop"
             fill
             className="object-cover object-center"
             sizes="(max-w-768px) 100vw, 1100px"
@@ -175,7 +172,7 @@ export function FeatureDeepDives() {
             </div>
             <div className="text-left">
               <p className="text-xs font-semibold text-foreground">Antal Balazs</p>
-              <p className="text-[11px] text-muted-foreground">macOS Power User</p>
+              <p className="text-xs text-muted-foreground">macOS Power User</p>
             </div>
           </div>
         </Card>
@@ -192,9 +189,8 @@ export function FeatureDeepDives() {
         </p>
 
         <div className="rounded-3xl border border-border shadow-2xl overflow-hidden relative aspect-[16/9] w-full mt-8 bg-card flex items-center justify-center p-6">
-          <Image
+          <Image alt="macOS Sonoma Desktop"
             src="/images/sonoma-wallpaper.webp"
-            alt="macOS Sonoma Desktop"
             fill
             className="object-cover object-center"
             sizes="(max-w-768px) 100vw, 1100px"

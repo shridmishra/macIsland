@@ -20,6 +20,13 @@ public final class PomodoroManager: ObservableObject {
     @Published public private(set) var totalDuration: TimeInterval = 45 * 60
     @Published public private(set) var completedSessions: Int = 0
     
+    /// User preference to show circular timer countdown in notch: defaults to true (ON)
+    @Published public var isTimerInNotchEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isTimerInNotchEnabled, forKey: "MacIsland.isTimerInNotchEnabled")
+        }
+    }
+    
     private var timer: Timer?
     private var targetEndTime: Date?
     
@@ -27,9 +34,27 @@ public final class PomodoroManager: ObservableObject {
         self.selectedMinutes = 45
         self.totalDuration = 45 * 60
         self.timeRemaining = 45 * 60
+        
+        if UserDefaults.standard.object(forKey: "MacIsland.isTimerInNotchEnabled") == nil {
+            self.isTimerInNotchEnabled = true
+        } else {
+            self.isTimerInNotchEnabled = UserDefaults.standard.bool(forKey: "MacIsland.isTimerInNotchEnabled")
+        }
     }
     
     // MARK: - Computed Properties
+    
+    /// Returns true when a timer is currently active (running or paused)
+    public var isTimerActive: Bool {
+        timerState != .idle
+    }
+    
+    /// Remaining fraction between 1.0 (just started, full circle) and 0.0 (completed)
+    public var remainingFraction: Double {
+        guard totalDuration > 0 else { return 0.0 }
+        let fraction = timeRemaining / totalDuration
+        return min(max(fraction, 0.0), 1.0)
+    }
     
     /// Progress between 0.0 (just started) and 1.0 (completed)
     public var progress: Double {
@@ -100,7 +125,7 @@ public final class PomodoroManager: ObservableObject {
         timerState = .running
         
         timer?.invalidate()
-        let newTimer = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
+        let newTimer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.tick()
             }
@@ -141,6 +166,10 @@ public final class PomodoroManager: ObservableObject {
     
     public func reset() {
         cancel()
+    }
+    
+    public func toggleTimerInNotch() {
+        isTimerInNotchEnabled.toggle()
     }
     
     // MARK: - Internal Logic

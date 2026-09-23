@@ -23,16 +23,22 @@ public final class MediaManager: ObservableObject {
     
     private let provider: NowPlayingProvider
     private var progressTicker: Timer?
+    private var musicHealthTicker: Timer?
+    private var activeMusicItem: MediaItem?
+    private var activeNonMusicItem: MediaItem?
     private var lastSeekDate: Date?
     private var lastSeekTargetSeconds: Double?
     private var transitionWorkItem: DispatchWorkItem?
     private var teardownWorkItem: DispatchWorkItem?
+    private let webArtworkCache = NSCache<NSString, NSData>()
+    private let trackArtworkCache = NSCache<NSString, NSData>()
     private let logger = Logger(subsystem: "com.macisland.app", category: "MediaManager")
     
     public init(provider: NowPlayingProvider = MediaRemoteProvider()) {
         self.provider = provider
         setupProvider()
         startProgressTicker()
+        startMusicHealthTicker()
     }
     
     private func setupProvider() {
@@ -86,20 +92,93 @@ public final class MediaManager: ObservableObject {
             self.logger.info("▶️ [MediaManager] Active track received, cancelled teardown timer.")
         }
         
-        // Detect a genuine track change (different song) to trigger skeleton loading
+        // Priority Arbitration: Always give 100% preference to music players over non-music media
+        
+        // 1. Check if native Apple Music or Spotify is playing
+        if let nativeMusic = MediaRemoteProvider.checkNativeMusicActive() {
+            let isIncomingMatchingNative = (newItem.bundleIdentifier == nativeMusic.bundleIdentifier &&
+                (newItem.title == nativeMusic.title ||
+                 newItem.title.lowercased().contains(nativeMusic.title.lowercased()) ||
+                 nativeMusic.title.lowercased().contains(newItem.title.lowercased())))
+            if !isIncomingMatchingNative {
+                self.activeNonMusicItem = newItem.isMusicPlayer ? nil : newItem
+                self.applyMusicItem(nativeMusic)
+                return
+            }
+        }
+        
+        // 2. Check if a browser music tab (YouTube Music, Spotify Web, Apple Music Web, etc.) is active
+        if newItem.title.isEmpty, let musicTab = BrowserServiceDetector.shared.queryActiveMusicTab(), musicTab.isPlaying {
+            let isIncomingMatchingMusic = (musicTab.rawTitle != nil && !musicTab.rawTitle!.isEmpty && (
+                newItem.title.lowercased().contains(musicTab.rawTitle!.lowercased()) ||
+                musicTab.rawTitle!.lowercased().contains(newItem.title.lowercased())
+            )) || (musicTab.url != nil && newItem.url != nil && newItem.url == musicTab.url)
+            
+            // If music tab is actively playing and incoming item is non-music (e.g. from X, Twitter, YouTube video)
+            if !isIncomingMatchingMusic {
+                self.activeNonMusicItem = newItem
+                let musicItem = MediaItem(
+                    id: "browser-music-\(musicTab.service.rawValue)-\(musicTab.rawTitle ?? musicTab.tabTitle ?? "track")",
+                    title: musicTab.rawTitle ?? musicTab.tabTitle ?? "Music",
+                    artist: musicTab.rawArtist ?? musicTab.service.displayName,
+                    album: musicTab.rawAlbum ?? "",
+                    duration: musicTab.duration ?? 0,
+                    currentTime: musicTab.currentTime ?? 0,
+                    isPlaying: true,
+                    application: musicTab.appName ?? musicTab.service.displayName,
+                    bundleIdentifier: musicTab.bundleIdentifier ?? "com.brave.Browser",
+                    service: musicTab.service,
+                    url: musicTab.url,
+                    artworkUrl: musicTab.artworkUrl
+                )
+                self.applyMusicItem(musicItem)
+                return
+            }
+        }
+        
+        // Detect a genuine track change (different song) vs periodic update to the same song
+        let isSameSong: Bool
         let isTrackChange: Bool
         if let existing = self.currentItem {
-            let newTitleClean = newItem.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let existingTitleClean = existing.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let newTitleClean = newItem.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let existingTitleClean = existing.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let newDisplayClean = newItem.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let existingDisplayClean = existing.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            
             if newTitleClean.isEmpty && !existingTitleClean.isEmpty {
                 // Temporary blank title during seek/buffer — not a genuine track change!
+                isSameSong = true
+                isTrackChange = false
+            } else if existing.id == newItem.id ||
+                      (existingTitleClean == newTitleClean && !newTitleClean.isEmpty) ||
+                      (existingDisplayClean == newDisplayClean && !newDisplayClean.isEmpty) ||
+                      (!existingTitleClean.isEmpty && !newTitleClean.isEmpty && (existingTitleClean.contains(newTitleClean) || newTitleClean.contains(existingTitleClean))) ||
+                      (!existingDisplayClean.isEmpty && !newDisplayClean.isEmpty && (existingDisplayClean.contains(newDisplayClean) || newDisplayClean.contains(existingDisplayClean))) {
+                isSameSong = true
                 isTrackChange = false
             } else {
-                isTrackChange = existingTitleClean != newTitleClean
+                isSameSong = false
+                isTrackChange = true
             }
         } else {
-            // First track arriving — show skeleton briefly while artwork loads
+            isSameSong = false
             isTrackChange = true
+        }
+        
+        // Robust artwork resolution: check incoming -> same track existing -> active music -> trackArtworkCache
+        let resolvedArtwork: Data?
+        if let incoming = newItem.artworkData, !incoming.isEmpty {
+            resolvedArtwork = incoming
+        } else if isSameSong, let existing = self.currentItem?.artworkData, !existing.isEmpty {
+            resolvedArtwork = existing
+        } else if isSameSong, let active = self.activeMusicItem?.artworkData, !active.isEmpty {
+            resolvedArtwork = active
+        } else if let cached = trackArtworkCache.object(forKey: newItem.title.lowercased() as NSString) as Data? {
+            resolvedArtwork = cached
+        } else if let cached = trackArtworkCache.object(forKey: newItem.displayTitle.lowercased() as NSString) as Data? {
+            resolvedArtwork = cached
+        } else {
+            resolvedArtwork = newItem.artworkData
         }
         
         if isTrackChange && newItem.isPlaying {
@@ -107,7 +186,7 @@ public final class MediaManager: ObservableObject {
             transitionWorkItem?.cancel()
             
             // Only show skeleton if artwork isn't immediately available
-            let hasImmediateArtwork = (newItem.artworkData != nil && !(newItem.artworkData?.isEmpty ?? true))
+            let hasImmediateArtwork = (resolvedArtwork != nil && !(resolvedArtwork?.isEmpty ?? true))
             if !hasImmediateArtwork {
                 self.isTransitioning = true
                 
@@ -127,11 +206,9 @@ public final class MediaManager: ObservableObject {
         let resolvedService: MediaService
         if newItem.service != .generic {
             resolvedService = newItem.service
-        } else if let active = BrowserServiceDetector.shared.activeService(for: newItem.bundleIdentifier ?? newItem.application) {
-            resolvedService = active
         } else if let cached = BrowserServiceDetector.shared.cachedService(bundleId: newItem.bundleIdentifier ?? "", trackTitle: newItem.title) {
             resolvedService = cached
-        } else if let existing = self.currentItem, existing.service != .generic {
+        } else if let existing = self.currentItem, existing.title == newItem.title, existing.service != .generic {
             resolvedService = existing.service
         } else {
             resolvedService = newItem.service
@@ -173,29 +250,32 @@ public final class MediaManager: ObservableObject {
                 resolvedLastUpdated = Date()
             } else if newItem.isBrowserMedia {
                 let currentEstimated = existing.currentProgress()
-                // If user seeked in browser (time jumped significantly by > 2.5s), adopt it
-                if newItem.currentTime > 0 && abs(newItem.currentTime - currentEstimated) > 2.5 {
+                // Tight clock synchronization: If user seeked or if drift exceeds 350ms,
+                // synchronize directly to authoritative player time.
+                // If drift is small (<= 350ms), maintain smooth continuous progress to eliminate micro-jitter.
+                if newItem.currentTime > 0 && abs(newItem.currentTime - currentEstimated) > 0.35 {
                     resolvedCurrentTime = newItem.currentTime
-                    resolvedLastUpdated = Date()
+                    resolvedLastUpdated = newItem.lastUpdated
                 } else {
-                    // Maintain smooth continuous 60fps wall-clock progress
+                    // Maintain smooth continuous wall-clock progress
                     resolvedCurrentTime = currentEstimated
                     resolvedLastUpdated = Date()
                 }
             } else {
                 // Native media player (Apple Music, Spotify, QuickTime)
-                let currentEstimated = existing.currentProgress()
-                // If incoming time from MediaRemote is within 1.5s of our running clock, keep smooth clock
-                if abs(newItem.currentTime - currentEstimated) < 1.5 {
-                    resolvedCurrentTime = currentEstimated
-                    resolvedLastUpdated = Date()
-                } else if newItem.currentTime > 0 {
-                    // Genuine seek or track change in native player
+                if !newItem.isPlaying {
                     resolvedCurrentTime = newItem.currentTime
                     resolvedLastUpdated = Date()
                 } else {
-                    resolvedCurrentTime = currentEstimated
-                    resolvedLastUpdated = Date()
+                    let currentEstimated = existing.currentProgress()
+                    // Tight clock synchronization: resync if drift exceeds 350ms
+                    if abs(newItem.currentTime - currentEstimated) > 0.35 && newItem.currentTime > 0 {
+                        resolvedCurrentTime = newItem.currentTime
+                        resolvedLastUpdated = newItem.lastUpdated
+                    } else {
+                        resolvedCurrentTime = currentEstimated
+                        resolvedLastUpdated = Date()
+                    }
                 }
             }
         } else {
@@ -232,12 +312,14 @@ public final class MediaManager: ObservableObject {
             resolvedAlbum = ""
         }
         
+        let mergedId = (isSameSong && self.currentItem != nil) ? self.currentItem!.id : newItem.id
+        
         let mergedItem = MediaItem(
-            id: newItem.id,
+            id: mergedId,
             title: resolvedTitle,
             artist: resolvedArtist,
             album: resolvedAlbum,
-            artworkData: newItem.artworkData ?? self.currentItem?.artworkData,
+            artworkData: resolvedArtwork,
             duration: resolvedDuration,
             currentTime: resolvedCurrentTime,
             isPlaying: newItem.isPlaying,
@@ -245,8 +327,22 @@ public final class MediaManager: ObservableObject {
             bundleIdentifier: newItem.bundleIdentifier,
             lastUpdated: resolvedLastUpdated,
             service: resolvedService,
-            url: self.currentItem?.url
+            url: self.currentItem?.url,
+            artworkUrl: newItem.artworkUrl ?? self.currentItem?.artworkUrl
         )
+        
+        if let art = resolvedArtwork, !art.isEmpty {
+            trackArtworkCache.setObject(art as NSData, forKey: resolvedTitle.lowercased() as NSString)
+            trackArtworkCache.setObject(art as NSData, forKey: newItem.title.lowercased() as NSString)
+            trackArtworkCache.setObject(art as NSData, forKey: newItem.displayTitle.lowercased() as NSString)
+        }
+        
+        let incomingIsMusic = newItem.isMusicPlayer
+        if incomingIsMusic {
+            self.activeMusicItem = mergedItem
+        } else {
+            self.activeNonMusicItem = mergedItem
+        }
         
         self.currentItem = mergedItem
         
@@ -266,8 +362,12 @@ public final class MediaManager: ObservableObject {
         let remaining = max(0, mergedItem.duration - progress)
         self.formattedRemainingTime = mergedItem.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
         
-        // 3. Query background tab detector for accurate service and video currentTime/duration
-        if mergedItem.isBrowserMedia {
+        // 3. Query background tab detector for accurate service and video metadata when needed
+        let needsBrowserDetection = isTrackChange ||
+                                    mergedItem.service == .generic ||
+                                    (mergedItem.artworkData == nil && (self.currentItem?.artworkData == nil)) ||
+                                    mergedItem.duration == 0
+        if mergedItem.isBrowserMedia && needsBrowserDetection {
             var bundleId = mergedItem.bundleIdentifier ?? ""
             let appName = mergedItem.application
             if bundleId.isEmpty || bundleId.contains("helper") {
@@ -327,15 +427,14 @@ public final class MediaManager: ObservableObject {
                                 finalLastUpdated = Date()
                             }
                         } else if domMatchesTrack, let detTime = detected.currentTime, detTime > 0 {
-                            // Only adopt detTime if DOM video matches our track
-                            if currentEstimated > 0 && abs(detTime - currentEstimated) < 2.0 {
+                            // DOM video is the ground truth for browser playback.
+                            // If drift is within 250ms, keep smooth wall-clock progress.
+                            // If drift exceeds 250ms, synchronize directly to DOM video position.
+                            if currentEstimated > 0 && abs(detTime - currentEstimated) <= 0.25 {
                                 finalCurrentTime = currentEstimated
-                                finalLastUpdated = Date()
-                            } else if currentEstimated == 0 || abs(detTime - currentEstimated) >= 2.0 {
-                                finalCurrentTime = detTime
                                 finalLastUpdated = Date()
                             } else {
-                                finalCurrentTime = currentEstimated
+                                finalCurrentTime = detTime
                                 finalLastUpdated = Date()
                             }
                         } else {
@@ -343,24 +442,58 @@ public final class MediaManager: ObservableObject {
                             finalLastUpdated = Date()
                         }
                         
+                        // If detected tab is music, prioritize it and extract clean metadata
+                        let isDetectedMusic = detected.isMusic || detected.service.isMusicService
+                        let finalTitle: String
+                        let finalArtist: String
+                        let finalAlbum: String
+                        
+                        if isDetectedMusic, let rawT = detected.rawTitle, !rawT.isEmpty {
+                            finalTitle = rawT
+                            finalArtist = detected.rawArtist ?? (self.currentItem?.artist ?? mergedItem.artist)
+                            finalAlbum = detected.rawAlbum ?? (self.currentItem?.album ?? mergedItem.album)
+                        } else {
+                            finalTitle = self.currentItem?.title ?? mergedItem.title
+                            finalArtist = self.currentItem?.artist ?? mergedItem.artist
+                            finalAlbum = self.currentItem?.album ?? mergedItem.album
+                        }
+                        
                         let serviceToUse = detected.service != .generic ? detected.service : (self.currentItem?.service ?? mergedItem.service)
+                        
+                        let detectedArtwork = self.currentItem?.artworkData ??
+                                              mergedItem.artworkData ??
+                                              self.activeMusicItem?.artworkData ??
+                                              (self.trackArtworkCache.object(forKey: finalTitle.lowercased() as NSString) as Data?)
+                        
+                        if let art = detectedArtwork, !art.isEmpty {
+                            self.trackArtworkCache.setObject(art as NSData, forKey: finalTitle.lowercased() as NSString)
+                        }
+                        
+                        let finalIsPlaying = mergedItem.isPlaying || (self.currentItem?.isPlaying ?? false) || detected.isPlaying
                         
                         let updated = MediaItem(
                             id: mergedItem.id,
-                            title: self.currentItem?.title ?? mergedItem.title,
-                            artist: self.currentItem?.artist ?? mergedItem.artist,
-                            album: self.currentItem?.album ?? mergedItem.album,
-                            artworkData: self.currentItem?.artworkData ?? mergedItem.artworkData,
+                            title: finalTitle,
+                            artist: finalArtist,
+                            album: finalAlbum,
+                            artworkData: detectedArtwork,
                             duration: finalDuration,
                             currentTime: finalCurrentTime,
-                            isPlaying: self.currentItem?.isPlaying ?? mergedItem.isPlaying,
+                            isPlaying: finalIsPlaying,
                             application: mergedItem.application,
                             bundleIdentifier: mergedItem.bundleIdentifier,
                             lastUpdated: finalLastUpdated,
                             service: serviceToUse,
-                            url: detected.url ?? self.currentItem?.url ?? mergedItem.url
+                            url: detected.url ?? self.currentItem?.url ?? mergedItem.url,
+                            artworkUrl: detected.artworkUrl
                         )
+                        
+                        if updated.isMusicPlayer {
+                            self.activeMusicItem = updated
+                        }
+                        
                         self.currentItem = updated
+                        self.playbackState = finalIsPlaying ? .playing : .paused
                         self.logger.info("🎯 [MediaManager:Detected] updated: \(updated.title, privacy: .public) | effectiveApp: \(updated.effectiveAppName, privacy: .public) | service: \(updated.service.rawValue, privacy: .public)")
                         let progress = updated.currentProgress()
                         self.interpolatedProgress = updated.progressFraction()
@@ -368,6 +501,10 @@ public final class MediaManager: ObservableObject {
                         self.formattedDuration = MediaItem.formatTime(updated.duration)
                         let remaining = max(0, updated.duration - progress)
                         self.formattedRemainingTime = updated.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
+                        
+                        if let artUrl = detected.artworkUrl, !artUrl.isEmpty {
+                            self.loadWebArtworkIfNeeded(for: updated, artworkUrl: artUrl)
+                        }
                     }
                 }
             }
@@ -379,6 +516,8 @@ public final class MediaManager: ObservableObject {
         let ticker = Timer(timeInterval: 0.25, repeats: true) { [weak self] _ in
             DispatchQueue.main.async {
                 guard let self = self, let item = self.currentItem, item.isPlaying else { return }
+                // Skip progress updates when island is collapsed — progress bar is only visible when expanded
+                guard WindowManager.shared.islandState.isExpanded else { return }
                 
                 // If in active seek lock (under 2.0s), advance smoothly from seek target
                 if let seekDate = self.lastSeekDate, let seekTarget = self.lastSeekTargetSeconds {
@@ -407,9 +546,168 @@ public final class MediaManager: ObservableObject {
         self.progressTicker = ticker
     }
     
+    // MARK: - Scriptable Browser Name Resolution
+    private func resolveBrowserApplicationName(appName: String, bundleId: String?) -> String {
+        let lowerBId = (bundleId ?? "").lowercased()
+        let lowerApp = appName.lowercased()
+        
+        if lowerBId.contains("brave") || lowerApp.contains("brave") {
+            return "Brave Browser"
+        } else if lowerBId.contains("chrome") || lowerApp.contains("chrome") {
+            return "Google Chrome"
+        } else if lowerBId.contains("safari") || lowerApp.contains("safari") {
+            return "Safari"
+        } else if lowerBId.contains("edge") || lowerApp.contains("edge") {
+            return "Microsoft Edge"
+        } else if lowerBId.contains("arc") || lowerApp.contains("arc") {
+            return "Arc"
+        } else if lowerBId.contains("opera") || lowerApp.contains("opera") {
+            return "Opera"
+        }
+        
+        for running in NSWorkspace.shared.runningApplications {
+            let rBId = running.bundleIdentifier?.lowercased() ?? ""
+            if rBId.contains("brave") { return "Brave Browser" }
+            if rBId.contains("chrome") { return "Google Chrome" }
+            if rBId.contains("arc") { return "Arc" }
+            if rBId.contains("edge") { return "Microsoft Edge" }
+            if rBId.contains("safari") { return "Safari" }
+        }
+        return "Brave Browser"
+    }
+    
+    // MARK: - Universal System Media Key Fallback
+    nonisolated public static func sendSystemMediaKey(key: Int32) {
+        func postKey(down: Bool) {
+            let flags = down ? 0xa00 : 0xb00
+            let data1 = Int((key << 16) | (Int32(down ? 0xa : 0xb) << 8))
+            let ev = NSEvent.otherEvent(
+                with: .systemDefined,
+                location: .zero,
+                modifierFlags: NSEvent.ModifierFlags(rawValue: UInt(flags)),
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                subtype: 8,
+                data1: data1,
+                data2: -1
+            )
+            ev?.cgEvent?.post(tap: .cghidEventTap)
+        }
+        postKey(down: true)
+        postKey(down: false)
+    }
+    
     // MARK: - Playback Actions
     public func togglePlayPause() {
+        if let item = currentItem {
+            let nextPlaying = !item.isPlaying
+            playbackState = nextPlaying ? .playing : .paused
+            
+            let bundleId = item.bundleIdentifier ?? ""
+            let appName = item.application
+            
+            // 1. Native Apple Music
+            if bundleId == "com.apple.Music" || (appName.contains("Music") && !item.isBrowserMedia) {
+                let script = "tell application \"Music\" to if running then playpause"
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    _ = NSAppleScript(source: script)?.executeAndReturnError(&error)
+                    if error != nil {
+                        self?.provider.togglePlayPause()
+                        Self.sendSystemMediaKey(key: 16)
+                    }
+                }
+                return
+            }
+            
+            // 2. Native Spotify
+            if bundleId == "com.spotify.client" || (appName.contains("Spotify") && !item.isBrowserMedia) {
+                let script = "tell application \"Spotify\" to if running then playpause"
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    _ = NSAppleScript(source: script)?.executeAndReturnError(&error)
+                    if error != nil {
+                        self?.provider.togglePlayPause()
+                        Self.sendSystemMediaKey(key: 16)
+                    }
+                }
+                return
+            }
+            
+            // 3. Web Browser Media (e.g. YouTube Music, Spotify Web, YouTube)
+            if item.isBrowserMedia {
+                let targetAppName = resolveBrowserApplicationName(appName: appName, bundleId: bundleId)
+                let js = """
+                (() => {
+                    const u = window.location.href.toLowerCase();
+                    const media = Array.from(document.querySelectorAll(\\\"video, audio\\\"));
+                    const activeMedia = media.find(m => !m.paused && !m.ended) || media.find(m => m.currentTime > 0) || media[0];
+                    const ytmBtn = document.querySelector(\\\"#play-pause-button, tp-yt-paper-icon-button#play-pause-button\\\");
+                    if (ytmBtn && u.includes(\\\"music.youtube.com\\\")) { ytmBtn.click(); return \\\"ok\\\"; }
+                    const ytBtn = document.querySelector(\\\".ytp-play-button\\\");
+                    if (ytBtn && (u.includes(\\\"youtube.com\\\") || u.includes(\\\"youtu.be\\\"))) { ytBtn.click(); return \\\"ok\\\"; }
+                    const spotBtn = document.querySelector(\\\"button[data-testid=\\\\\\\"control-button-playpause\\\\\\\"]\\\");
+                    if (spotBtn && u.includes(\\\"spotify.com\\\")) { spotBtn.click(); return \\\"ok\\\"; }
+                    const genBtn = document.querySelector(\\\".play-pause-button, button[aria-label=\\\"Play\\\"], button[aria-label=\\\"Pause\\\"]\\\");
+                    if (genBtn) { genBtn.click(); return \\\"ok\\\"; }
+                    if (activeMedia) {
+                        if (activeMedia.paused) { activeMedia.play(); } else { activeMedia.pause(); }
+                        return \\\"ok\\\";
+                    }
+                    return \\\"\\\";
+                })()
+                """
+                
+                let script: String
+                if targetAppName == "Safari" || bundleId == "com.apple.Safari" {
+                    script = """
+                    tell application "Safari"
+                        if running then
+                            repeat with w in windows
+                                repeat with t in tabs of w
+                                    try
+                                        set res to do JavaScript "\(js)" in t
+                                        if res is "ok" then return "ok"
+                                    end try
+                                end repeat
+                            end repeat
+                        end if
+                    end tell
+                    """
+                } else {
+                    script = """
+                    tell application "\(targetAppName)"
+                        if running then
+                            repeat with w in windows
+                                repeat with t in tabs of w
+                                    try
+                                        tell t
+                                            set res to execute javascript "\(js)"
+                                            if res is "ok" then return "ok"
+                                        end tell
+                                    end try
+                                end repeat
+                            end repeat
+                        end if
+                    end tell
+                    """
+                }
+                
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    let res = NSAppleScript(source: script)?.executeAndReturnError(&error).stringValue ?? ""
+                    if res != "ok" {
+                        self?.provider.togglePlayPause()
+                        Self.sendSystemMediaKey(key: 16)
+                    }
+                }
+                return
+            }
+        }
+        
         provider.togglePlayPause()
+        Self.sendSystemMediaKey(key: 16)
         if let item = currentItem {
             let nextPlaying = !item.isPlaying
             playbackState = nextPlaying ? .playing : .paused
@@ -420,14 +718,210 @@ public final class MediaManager: ObservableObject {
         teardownWorkItem?.cancel()
         teardownWorkItem = nil
         isTransitioning = true
+        
+        if let item = currentItem {
+            let bundleId = item.bundleIdentifier ?? ""
+            let appName = item.application
+            
+            // 1. Native Apple Music
+            if bundleId == "com.apple.Music" || (appName.contains("Music") && !item.isBrowserMedia) {
+                let script = "tell application \"Music\" to if running then next track"
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    _ = NSAppleScript(source: script)?.executeAndReturnError(&error)
+                    if error != nil {
+                        self?.provider.nextTrack()
+                        Self.sendSystemMediaKey(key: 19)
+                    }
+                }
+                return
+            }
+            
+            // 2. Native Spotify
+            if bundleId == "com.spotify.client" || (appName.contains("Spotify") && !item.isBrowserMedia) {
+                let script = "tell application \"Spotify\" to if running then next track"
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    _ = NSAppleScript(source: script)?.executeAndReturnError(&error)
+                    if error != nil {
+                        self?.provider.nextTrack()
+                        Self.sendSystemMediaKey(key: 19)
+                    }
+                }
+                return
+            }
+            
+            // 3. Web Browser Media (e.g. YouTube Music, Spotify Web)
+            if item.isBrowserMedia {
+                let targetAppName = resolveBrowserApplicationName(appName: appName, bundleId: bundleId)
+                let js = """
+                (() => {
+                    const u = window.location.href.toLowerCase();
+                    const ytmNext = document.querySelector(\\\".next-button, #next-button, tp-yt-paper-icon-button.next-button\\\");
+                    if (ytmNext && u.includes(\\\"music.youtube.com\\\")) { ytmNext.click(); return \\\"ok\\\"; }
+                    const ytNext = document.querySelector(\\\".ytp-next-button\\\");
+                    if (ytNext && (u.includes(\\\"youtube.com\\\") || u.includes(\\\"youtu.be\\\"))) { ytNext.click(); return \\\"ok\\\"; }
+                    const spotNext = document.querySelector(\\\"button[data-testid=\\\\\\\"control-button-skip-forward\\\\\\\"]\\\");
+                    if (spotNext && u.includes(\\\"spotify.com\\\")) { spotNext.click(); return \\\"ok\\\"; }
+                    const btn = document.querySelector(\\\"button[aria-label=\\\"Next track\\\"], button[aria-label=\\\"Next\\\"]\\\");
+                    if (btn) { btn.click(); return \\\"ok\\\"; }
+                    return \\\"\\\";
+                })()
+                """
+                
+                let script: String
+                if targetAppName == "Safari" || bundleId == "com.apple.Safari" {
+                    script = """
+                    tell application "Safari"
+                        if running then
+                            repeat with w in windows
+                                repeat with t in tabs of w
+                                    try
+                                        set res to do JavaScript "\(js)" in t
+                                        if res is "ok" then return "ok"
+                                    end try
+                                end repeat
+                            end repeat
+                        end if
+                    end tell
+                    """
+                } else {
+                    script = """
+                    tell application "\(targetAppName)"
+                        if running then
+                            repeat with w in windows
+                                repeat with t in tabs of w
+                                    try
+                                        tell t
+                                            set res to execute javascript "\(js)"
+                                            if res is "ok" then return "ok"
+                                        end tell
+                                    end try
+                                end repeat
+                            end repeat
+                        end if
+                    end tell
+                    """
+                }
+                
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    let res = NSAppleScript(source: script)?.executeAndReturnError(&error).stringValue ?? ""
+                    if res != "ok" {
+                        self?.provider.nextTrack()
+                        Self.sendSystemMediaKey(key: 19)
+                    }
+                }
+                return
+            }
+        }
+        
         provider.nextTrack()
+        Self.sendSystemMediaKey(key: 19)
     }
     
     public func previousTrack() {
         teardownWorkItem?.cancel()
         teardownWorkItem = nil
         isTransitioning = true
+        
+        if let item = currentItem {
+            let bundleId = item.bundleIdentifier ?? ""
+            let appName = item.application
+            
+            // 1. Native Apple Music
+            if bundleId == "com.apple.Music" || (appName.contains("Music") && !item.isBrowserMedia) {
+                let script = "tell application \"Music\" to if running then previous track"
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    _ = NSAppleScript(source: script)?.executeAndReturnError(&error)
+                    if error != nil {
+                        self?.provider.previousTrack()
+                        Self.sendSystemMediaKey(key: 20)
+                    }
+                }
+                return
+            }
+            
+            // 2. Native Spotify
+            if bundleId == "com.spotify.client" || (appName.contains("Spotify") && !item.isBrowserMedia) {
+                let script = "tell application \"Spotify\" to if running then previous track"
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    _ = NSAppleScript(source: script)?.executeAndReturnError(&error)
+                    if error != nil {
+                        self?.provider.previousTrack()
+                        Self.sendSystemMediaKey(key: 20)
+                    }
+                }
+                return
+            }
+            
+            // 3. Web Browser Media (e.g. YouTube Music, Spotify Web)
+            if item.isBrowserMedia {
+                let targetAppName = resolveBrowserApplicationName(appName: appName, bundleId: bundleId)
+                let js = """
+                (() => {
+                    const u = window.location.href.toLowerCase();
+                    const ytmPrev = document.querySelector(\\\".previous-button, #previous-button, tp-yt-paper-icon-button.previous-button\\\");
+                    if (ytmPrev && u.includes(\\\"music.youtube.com\\\")) { ytmPrev.click(); return \\\"ok\\\"; }
+                    const spotPrev = document.querySelector(\\\"button[data-testid=\\\\\\\"control-button-skip-back\\\\\\\"]\\\");
+                    if (spotPrev && u.includes(\\\"spotify.com\\\")) { spotPrev.click(); return \\\"ok\\\"; }
+                    const btn = document.querySelector(\\\"button[aria-label=\\\"Previous track\\\"], button[aria-label=\\\"Previous\\\"]\\\");
+                    if (btn) { btn.click(); return \\\"ok\\\"; }
+                    return \\\"\\\";
+                })()
+                """
+                
+                let script: String
+                if targetAppName == "Safari" || bundleId == "com.apple.Safari" {
+                    script = """
+                    tell application "Safari"
+                        if running then
+                            repeat with w in windows
+                                repeat with t in tabs of w
+                                    try
+                                        set res to do JavaScript "\(js)" in t
+                                        if res is "ok" then return "ok"
+                                    end try
+                                end repeat
+                            end repeat
+                        end if
+                    end tell
+                    """
+                } else {
+                    script = """
+                    tell application "\(targetAppName)"
+                        if running then
+                            repeat with w in windows
+                                repeat with t in tabs of w
+                                    try
+                                        tell t
+                                            set res to execute javascript "\(js)"
+                                            if res is "ok" then return "ok"
+                                        end tell
+                                    end try
+                                end repeat
+                            end repeat
+                        end if
+                    end tell
+                    """
+                }
+                
+                DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                    var error: NSDictionary?
+                    let res = NSAppleScript(source: script)?.executeAndReturnError(&error).stringValue ?? ""
+                    if res != "ok" {
+                        self?.provider.previousTrack()
+                        Self.sendSystemMediaKey(key: 20)
+                    }
+                }
+                return
+            }
+        }
+        
         provider.previousTrack()
+        Self.sendSystemMediaKey(key: 20)
     }
     
     // MARK: - Navigation Actions
@@ -435,6 +929,12 @@ public final class MediaManager: ObservableObject {
     public func openCurrentSource() {
         guard let item = currentItem else { return }
         MediaSourceNavigator.shared.openSource(for: item)
+    }
+    
+    public func seek(toSeconds seconds: TimeInterval) {
+        guard let item = currentItem, item.duration > 0 else { return }
+        let fraction = max(0.0, min(1.0, seconds / item.duration))
+        seek(to: fraction)
     }
     
     public func seek(to fraction: Double) {
@@ -598,8 +1098,282 @@ public final class MediaManager: ObservableObject {
         }
     }
     
+    // MARK: - Music Player Arbitration & Artwork Helpers
+    private func isMusicItemStillPlaying(_ item: MediaItem) -> Bool {
+        guard item.isMusicPlayer else { return false }
+        let bId = item.bundleIdentifier ?? ""
+        
+        // 1. Native Apple Music
+        if bId == "com.apple.Music" {
+            let script = "tell application \"Music\" to if running then return (player state is playing) as string"
+            var error: NSDictionary?
+            let res = NSAppleScript(source: script)?.executeAndReturnError(&error).stringValue?.lowercased() ?? ""
+            return res == "true"
+        }
+        
+        // 2. Native Spotify
+        if bId == "com.spotify.client" {
+            let script = "tell application \"Spotify\" to if running then return (player state is playing) as string"
+            var error: NSDictionary?
+            let res = NSAppleScript(source: script)?.executeAndReturnError(&error).stringValue?.lowercased() ?? ""
+            return res == "true"
+        }
+        
+        // 3. Web Browser Media (YouTube Music, Spotify Web, Apple Music Web, etc.)
+        // Trust MediaRemote's authoritative playback state directly.
+        // Never run blocking or failing AppleScripts that freeze the main thread and erroneously force pause.
+        return item.isPlaying
+    }
+    
+    private func startMusicHealthTicker() {
+        musicHealthTicker?.invalidate()
+        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.verifyMusicPrecedence()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        musicHealthTicker = timer
+    }
+    
+    public func applyMusicItem(_ musicItem: MediaItem) {
+        let isSameSong: Bool
+        let isTrackChange: Bool
+        if let existing = self.currentItem {
+            let newTitleClean = musicItem.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let existingTitleClean = existing.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let newDisplayClean = musicItem.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let existingDisplayClean = existing.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            
+            if newTitleClean.isEmpty && !existingTitleClean.isEmpty {
+                isSameSong = true
+                isTrackChange = false
+            } else if existing.id == musicItem.id ||
+                      (existingTitleClean == newTitleClean && !newTitleClean.isEmpty) ||
+                      (existingDisplayClean == newDisplayClean && !newDisplayClean.isEmpty) ||
+                      (!existingTitleClean.isEmpty && !newTitleClean.isEmpty && (existingTitleClean.contains(newTitleClean) || newTitleClean.contains(existingTitleClean))) ||
+                      (!existingDisplayClean.isEmpty && !newDisplayClean.isEmpty && (existingDisplayClean.contains(newDisplayClean) || newDisplayClean.contains(existingDisplayClean))) {
+                isSameSong = true
+                isTrackChange = false
+            } else {
+                isSameSong = false
+                isTrackChange = true
+            }
+        } else {
+            isSameSong = false
+            isTrackChange = true
+        }
+        
+        let mergedArtwork: Data?
+        if let incoming = musicItem.artworkData, !incoming.isEmpty {
+            mergedArtwork = incoming
+        } else if isSameSong, let existing = self.currentItem?.artworkData, !existing.isEmpty {
+            mergedArtwork = existing
+        } else if let cached = trackArtworkCache.object(forKey: musicItem.title.lowercased() as NSString) as Data? {
+            mergedArtwork = cached
+        } else if let cached = trackArtworkCache.object(forKey: musicItem.displayTitle.lowercased() as NSString) as Data? {
+            mergedArtwork = cached
+        } else {
+            mergedArtwork = musicItem.artworkData
+        }
+        
+        if let art = mergedArtwork, !art.isEmpty {
+            trackArtworkCache.setObject(art as NSData, forKey: musicItem.title.lowercased() as NSString)
+            trackArtworkCache.setObject(art as NSData, forKey: musicItem.displayTitle.lowercased() as NSString)
+        }
+        
+        if isTrackChange && musicItem.isPlaying {
+            transitionWorkItem?.cancel()
+            let hasImmediateArtwork = (mergedArtwork != nil && !(mergedArtwork?.isEmpty ?? true))
+            if !hasImmediateArtwork {
+                self.isTransitioning = true
+                let workItem = DispatchWorkItem { [weak self] in
+                    self?.isTransitioning = false
+                }
+                self.transitionWorkItem = workItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: workItem)
+            } else {
+                self.isTransitioning = false
+            }
+        } else {
+            self.isTransitioning = false
+        }
+        
+        let merged = MediaItem(
+            id: musicItem.id,
+            title: musicItem.title,
+            artist: musicItem.artist,
+            album: musicItem.album,
+            artworkData: mergedArtwork,
+            duration: musicItem.duration,
+            currentTime: musicItem.currentTime,
+            isPlaying: musicItem.isPlaying,
+            application: musicItem.application,
+            bundleIdentifier: musicItem.bundleIdentifier,
+            lastUpdated: Date(),
+            service: musicItem.service,
+            url: musicItem.url,
+            artworkUrl: musicItem.artworkUrl
+        )
+        
+        self.activeMusicItem = merged
+        self.currentItem = merged
+        self.playbackState = merged.isPlaying ? .playing : .paused
+        let progress = merged.currentProgress()
+        self.interpolatedProgress = merged.progressFraction()
+        self.formattedCurrentTime = MediaItem.formatTime(progress)
+        self.formattedDuration = MediaItem.formatTime(merged.duration)
+        let remaining = max(0, merged.duration - progress)
+        self.formattedRemainingTime = merged.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
+        
+        if self.isTransitioning, let art = merged.artworkData, !art.isEmpty {
+            self.transitionWorkItem?.cancel()
+            self.isTransitioning = false
+        }
+        
+        if let artUrl = merged.artworkUrl, !artUrl.isEmpty {
+            self.loadWebArtworkIfNeeded(for: merged, artworkUrl: artUrl)
+        }
+    }
+    
+    private func verifyMusicPrecedence() {
+        // 1. Check if native Apple Music or Spotify is actively playing
+        if let nativeMusic = MediaRemoteProvider.checkNativeMusicActive() {
+            let isAlreadyCurrent = (self.currentItem?.bundleIdentifier == nativeMusic.bundleIdentifier &&
+                                    self.currentItem?.title == nativeMusic.title &&
+                                    self.playbackState == .playing)
+            if !isAlreadyCurrent {
+                self.logger.info("🎵 [MediaManager:HealthTicker] Elevating active native music: \(nativeMusic.title)")
+                self.applyMusicItem(nativeMusic)
+            }
+            return
+        }
+        
+        // 2. Check if a browser music tab is active only if no media is currently known
+        if self.currentItem == nil, let musicTab = BrowserServiceDetector.shared.queryActiveMusicTab() {
+            let isAlreadyCurrent = (self.currentItem?.isMusicPlayer == true &&
+                                    self.currentItem?.title == musicTab.rawTitle &&
+                                    self.playbackState == (musicTab.isPlaying ? .playing : .paused))
+            if !isAlreadyCurrent {
+                let musicItem = MediaItem(
+                    id: "browser-music-\(musicTab.service.rawValue)-\(musicTab.rawTitle ?? musicTab.tabTitle ?? "track")",
+                    title: musicTab.rawTitle ?? musicTab.tabTitle ?? "Music",
+                    artist: musicTab.rawArtist ?? musicTab.service.displayName,
+                    album: musicTab.rawAlbum ?? "",
+                    duration: musicTab.duration ?? 0,
+                    currentTime: musicTab.currentTime ?? 0,
+                    isPlaying: musicTab.isPlaying,
+                    application: musicTab.appName ?? musicTab.service.displayName,
+                    bundleIdentifier: musicTab.bundleIdentifier ?? "com.brave.Browser",
+                    service: musicTab.service,
+                    url: musicTab.url,
+                    artworkUrl: musicTab.artworkUrl
+                )
+                self.logger.info("🎵 [MediaManager:HealthTicker] Elevating active browser music tab '\(musicItem.title)'")
+                self.applyMusicItem(musicItem)
+            }
+            return
+        }
+        
+        // 3. If current item is music that stopped playing, fall back to non-music if available
+        if let current = self.currentItem, current.isMusicPlayer && self.playbackState == .playing {
+            if !isMusicItemStillPlaying(current) {
+                self.logger.info("🎵 [MediaManager:HealthTicker] Active music item '\(current.title)' stopped playing")
+                if let nonMusic = self.activeNonMusicItem, nonMusic.isPlaying {
+                    self.logger.info("🎵 [MediaManager:HealthTicker] Falling back to non-music media '\(nonMusic.title)'")
+                    self.currentItem = nonMusic
+                    self.playbackState = .playing
+                    let progress = nonMusic.currentProgress()
+                    self.interpolatedProgress = nonMusic.progressFraction()
+                    self.formattedCurrentTime = MediaItem.formatTime(progress)
+                    self.formattedDuration = MediaItem.formatTime(nonMusic.duration)
+                    let remaining = max(0, nonMusic.duration - progress)
+                    self.formattedRemainingTime = nonMusic.duration > 0 ? "-\(MediaItem.formatTime(remaining))" : "-0:00"
+                } else {
+                    self.playbackState = .paused
+                }
+            }
+        }
+    }
+    
+    private func loadWebArtworkIfNeeded(for item: MediaItem, artworkUrl: String?) {
+        guard let urlString = artworkUrl, !urlString.isEmpty, let url = URL(string: urlString) else { return }
+        
+        let cacheKey = urlString
+        if let cachedData = webArtworkCache.object(forKey: cacheKey as NSString) as Data? {
+            trackArtworkCache.setObject(cachedData as NSData, forKey: item.title.lowercased() as NSString)
+            trackArtworkCache.setObject(cachedData as NSData, forKey: item.displayTitle.lowercased() as NSString)
+            
+            if (self.currentItem?.id == item.id || (self.currentItem?.title == item.title && self.currentItem?.artist == item.artist)) &&
+                (self.currentItem?.artworkData == nil || self.currentItem?.artworkData?.isEmpty == true) {
+                let updated = MediaItem(
+                    id: item.id,
+                    title: item.title,
+                    artist: item.artist,
+                    album: item.album,
+                    artworkData: cachedData,
+                    duration: item.duration,
+                    currentTime: item.currentTime,
+                    isPlaying: item.isPlaying,
+                    application: item.application,
+                    bundleIdentifier: item.bundleIdentifier,
+                    lastUpdated: item.lastUpdated,
+                    service: item.service,
+                    url: item.url,
+                    artworkUrl: item.artworkUrl
+                )
+                if updated.isMusicPlayer {
+                    self.activeMusicItem = updated
+                }
+                self.currentItem = updated
+                self.isTransitioning = false
+                self.transitionWorkItem?.cancel()
+            }
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let data = data, error == nil, !data.isEmpty else { return }
+            
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.webArtworkCache.setObject(data as NSData, forKey: cacheKey as NSString)
+                self.trackArtworkCache.setObject(data as NSData, forKey: item.title.lowercased() as NSString)
+                self.trackArtworkCache.setObject(data as NSData, forKey: item.displayTitle.lowercased() as NSString)
+                let isMatch = (self.currentItem?.id == item.id) ||
+                    (self.currentItem?.title == item.title && self.currentItem?.artist == item.artist)
+                if isMatch && (self.currentItem?.artworkData == nil || self.currentItem?.artworkData?.isEmpty == true) {
+                    let updated = MediaItem(
+                        id: item.id,
+                        title: item.title,
+                        artist: item.artist,
+                        album: item.album,
+                        artworkData: data,
+                        duration: item.duration,
+                        currentTime: item.currentTime,
+                        isPlaying: item.isPlaying,
+                        application: item.application,
+                        bundleIdentifier: item.bundleIdentifier,
+                        lastUpdated: item.lastUpdated,
+                        service: item.service,
+                        url: item.url,
+                        artworkUrl: item.artworkUrl
+                    )
+                    if updated.isMusicPlayer {
+                        self.activeMusicItem = updated
+                    }
+                    self.currentItem = updated
+                    self.isTransitioning = false
+                    self.transitionWorkItem?.cancel()
+                    self.logger.info("🖼️ [MediaManager] Loaded and applied web artwork for '\(item.title)'")
+                }
+            }
+        }.resume()
+    }
+    
     deinit {
         progressTicker?.invalidate()
+        musicHealthTicker?.invalidate()
         transitionWorkItem?.cancel()
         teardownWorkItem?.cancel()
         provider.stopObserving()

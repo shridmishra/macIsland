@@ -2,6 +2,8 @@
 
 **Mac Island** is a native macOS Dynamic Island utility built with **Swift**, **SwiftUI**, and **AppKit**. It rests unobtrusively at the top of your Mac screen (seamlessly integrating with the camera notch on modern MacBooks or floating on external displays) and smoothly expands on hover or tap to reveal live media playback information and playback controls.
 
+Mac Island is **100% free** with all core features completely unlocked forever. An optional Pro tier with advanced workflows will be introduced in the future.
+
 ---
 
 ## Architecture for Web / TypeScript Developers
@@ -37,7 +39,8 @@ macIsland/
         │   ├── AppDelegate.swift             # NSApplicationDelegate, accessory policy, menu bar icon
         │   ├── IslandPanel.swift             # Borderless, transparent, non-activating NSPanel
         │   ├── IslandHostingView.swift       # NSHostingView subclass with NSTrackingArea & click-through
-        │   └── IslandWindowController.swift  # Coordinates window frames, animation, and multi-monitor events
+        │   ├── IslandWindowController.swift  # Coordinates window frames, animation, and multi-monitor events
+        │   └── DashboardWindowController.swift # Desktop Dashboard window controller
         ├── Models/
         │   ├── MediaItem.swift               # Media state model with time formatting & progress interpolation
         │   ├── IslandState.swift             # Enum: collapsed, expanded, hidden
@@ -48,11 +51,13 @@ macIsland/
         │   └── MediaRemoteProvider.swift     # System-wide Now Playing provider
         ├── Managers/
         │   ├── MediaManager.swift            # Observable media coordinator and ticker
-        │   └── WindowManager.swift           # Observable window geometry and hover debouncer
+        │   ├── WindowManager.swift           # Observable window geometry and hover debouncer
+        │   └── ProManager.swift              # Pro features state manager
         ├── Views/
         │   ├── IslandContainerView.swift     # Root container with spring animations and blur material
         │   ├── CollapsedIslandView.swift     # Compact pill with mini artwork & animated waveform bars
-        │   └── ExpandedIslandView.swift      # Interactive media card with artwork, progress & controls
+        │   ├── ExpandedIslandView.swift      # Interactive media card with artwork, progress & controls
+        │   └── DesktopDashboardView.swift    # Full desktop dashboard companion view
         ├── Components/
         │   ├── ArtworkImageView.swift        # Rounded album artwork with graceful fallback
         │   ├── AudioWaveformIndicator.swift  # Animated equalizer bars for active playback
@@ -91,6 +96,13 @@ macIsland/
 - Moving your cursor over the top pill triggers an instant, fluid macOS spring expansion (`Animation.spring(response: 0.36, dampingFraction: 0.82)`).
 - When moving your cursor away, a **450ms debounce timer** prevents the island from accidentally snapping shut while your mouse is transitioning to or from the controls.
 - You can also tap the collapsed island to expand it, or click the subtle chevron `^` to collapse it instantly.
+
+---
+
+## Free Edition & Pro Features
+
+- **100% Free**: All core features (dynamic notch hugging, live media playback, synchronized lyrics, stealth HUD, Pomodoro focus timer, audio route picker) are completely free with zero trial expiration and no credit card required.
+- **Pro Features (Coming Soon)**: Advanced customization and power workflows will be available in an optional future Pro upgrade.
 
 ---
 

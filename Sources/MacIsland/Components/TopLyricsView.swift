@@ -28,16 +28,16 @@ public struct TopLyricsView: View {
                             
                             Text("Loading...")
                                 .font(.system(size: 11.5, weight: .medium))
-                                .foregroundColor(Color.islandTextSecondary)
+                                .foregroundStyle(Color.islandTextSecondary)
                                 .lineLimit(1)
                                 .fixedSize(horizontal: true, vertical: false)
                         }
                         .transition(.opacity)
                     } else if lyricsManager.showNoLyricsNotice {
-                        // "No lyrics" text displayed for 5 seconds before transitioning to audio pulse
-                        Text("No lyrics")
+                        // Notice text ("No lyrics" or "Lyrics not synced") displayed for 5 seconds before transitioning to audio pulse
+                        Text(lyricsManager.noLyricsNoticeText)
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color.white.opacity(0.80))
+                            .foregroundStyle(Color.white.opacity(0.80))
                             .lineLimit(1)
                             .fixedSize(horizontal: true, vertical: false)
                             .transition(.opacity)
@@ -45,7 +45,7 @@ public struct TopLyricsView: View {
                         // ACTIVE SINGING: Clean kinetic typography with blur-slide transition
                         Text(line.text)
                             .font(.system(size: 12.5, weight: .semibold))
-                            .foregroundColor(Color.islandTextPrimary)
+                            .foregroundStyle(Color.islandTextPrimary)
                             .lineLimit(1)
                             .fixedSize(horizontal: true, vertical: false)
                             .id("\(line.id.uuidString)-\(line.text)")
@@ -77,7 +77,7 @@ struct AnimatedTuneIcon: View {
     var body: some View {
         Image(systemName: "music.note")
             .font(.system(size: 11.5, weight: .bold))
-            .foregroundColor(Color.white.opacity(0.90))
+            .foregroundStyle(Color.white.opacity(0.90))
             .scaleEffect(isPlaying ? (isPulsing ? 1.18 : 0.88) : 1.0)
             .rotationEffect(.degrees(isPlaying ? (isPulsing ? 7 : -5) : 0))
             .animation(

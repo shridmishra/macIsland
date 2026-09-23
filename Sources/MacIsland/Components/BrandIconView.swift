@@ -36,7 +36,7 @@ public struct BrandIconView: View {
             Color.white.opacity(0.12)
             Image(systemName: "music.note")
                 .font(.system(size: size * 0.42, weight: .medium))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
         }
     }
 }

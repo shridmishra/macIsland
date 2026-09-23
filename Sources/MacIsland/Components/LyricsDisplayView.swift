@@ -25,17 +25,17 @@ public struct LyricsDisplayView: View {
                 
                 Text("Loading...")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color.islandTextTertiary)
+                    .foregroundStyle(Color.islandTextTertiary)
             } else if let line = lyricsManager.currentLine, !line.text.isEmpty {
                 // Musical note indicator
                 Image(systemName: "music.note")
                     .font(.system(size: 9, weight: .semibold))
-                    .foregroundColor(Color.islandTextTertiary)
+                    .foregroundStyle(Color.islandTextTertiary)
                 
                 // Synchronized active singing line
                 Text(line.text)
                     .font(.system(size: 11.5, weight: .semibold))
-                    .foregroundColor(Color.islandTextPrimary)
+                    .foregroundStyle(Color.islandTextPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .id("\(line.id.uuidString)-\(line.text)")
@@ -51,7 +51,7 @@ public struct LyricsDisplayView: View {
             } else {
                 Text("No lyrics")
                     .font(.system(size: 10.5, weight: .medium))
-                    .foregroundColor(Color.islandTextTertiary)
+                    .foregroundStyle(Color.islandTextTertiary)
             }
         }
         .frame(maxWidth: 170, alignment: .trailing)

@@ -20,7 +20,7 @@ export function BottomCtaBanner() {
           </h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Mac Island turns your MacBook notch into an intelligent Dynamic Island.
-            Download the free universal app and experience fluid media control.
+            Completely free to use with all core features unlocked. No subscriptions, ever.
           </p>
           <div className="pt-2">
             <Button
@@ -29,13 +29,9 @@ export function BottomCtaBanner() {
               size="lg"
               className="gap-2.5 h-12 px-6"
             >
-              <a
-                href="https://github.com/shridhar/macIsland/releases"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <a href="#pricing">
                 <AppleOfficialIcon size={16} className="text-white" />
-                <span>Download for macOS</span>
+                <span>Download Free for Mac</span>
               </a>
             </Button>
           </div>
@@ -43,9 +39,8 @@ export function BottomCtaBanner() {
 
         {/* Right Mini Desktop Mockup */}
         <div className="w-full md:w-80 h-48 rounded-2xl overflow-hidden border border-border shadow-lg relative bg-card shrink-0">
-          <Image
+          <Image alt="macOS Sonoma Screen"
             src="/images/sonoma-wallpaper.webp"
-            alt="macOS Sonoma Screen"
             fill
             className="object-cover object-center"
             sizes="350px"

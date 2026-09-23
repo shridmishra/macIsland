@@ -20,6 +20,8 @@ public enum MediaService: String, CaseIterable, Sendable {
     case appleTV = "Apple TV"
     case generic = "Media"
     
+    public var displayName: String { rawValue }
+    
     /// Vibrant brand colors matching the streaming service's official logo
     public var brandColor: Color {
         switch self {
@@ -65,7 +67,7 @@ public enum MediaService: String, CaseIterable, Sendable {
     /// Returns true if this service primarily streams video / movies / shows / live streams
     public var isVideoService: Bool {
         switch self {
-        case .primeVideo, .netflix, .disneyPlus, .appleTV, .twitch, .youtube:
+        case .primeVideo, .netflix, .disneyPlus, .appleTV, .twitch:
             return true
         default:
             return false
@@ -127,12 +129,14 @@ public enum MediaService: String, CaseIterable, Sendable {
         album: String = "",
         artist: String = "",
         bundleId: String? = nil,
-        appName: String = ""
+        appName: String = "",
+        url: String = ""
     ) -> (service: MediaService, cleanedTitle: String, extractedAuthor: String?) {
-        let combined = "\(title) \(album) \(artist) \(appName)".lowercased()
+        let combined = "\(title) \(album) \(artist) \(appName) \(url)".lowercased()
         let isBrowser = bundleId.map { browserBundleIds.contains($0) } ?? false
         let lowerBundleId = bundleId?.lowercased() ?? ""
         let lowerAppName = appName.lowercased()
+        let lowerUrl = url.lowercased()
         
         // 0. X (Twitter)
         if combined.contains("on x: ") || combined.contains(" / x") || combined.contains("on twitter: ") || combined.contains(" / twitter") || combined.contains("x.com") || combined.contains("twitter.com") {
@@ -155,7 +159,7 @@ public enum MediaService: String, CaseIterable, Sendable {
         }
         
         // 3. YouTube Music
-        if combined.contains("youtube music") || combined.contains("music.youtube") {
+        if combined.contains("youtube music") || combined.contains("music.youtube") || lowerUrl.contains("music.youtube.com") {
             let clean = cleanServiceTitle(title)
             return (.youtubeMusic, clean, nil)
         }

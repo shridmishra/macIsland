@@ -33,11 +33,11 @@ export function Navbar() {
         </div>
 
         {/* Central Black Notch Navigation Bar */}
-        <nav className="bg-notch-surface text-hero-pink-text rounded-b-2xl px-5 sm:px-7 py-2.5 flex items-center justify-between gap-6 sm:gap-10 shadow-2xl border-x border-b border-white/10">
+        <nav className="bg-notch-surface text-hero-orange-text rounded-b-2xl px-5 sm:px-7 py-2.5 flex items-center justify-between gap-6 sm:gap-10 shadow-2xl border-x border-b border-white/10">
           {/* Brand Logo & Name */}
           <Link href="#hero" className="flex items-center gap-2.5 group">
             {/* Glossy App Icon Squircle with Official Apple Silhouette */}
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-apple-blue via-apple-purple to-hero-pink-mid flex items-center justify-center p-0.5 shadow-md transition-transform duration-200 group-hover:scale-105 border border-white/20">
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-apple-blue via-apple-purple to-hero-orange-mid flex items-center justify-center p-0.5 shadow-md transition-transform duration-200 group-hover:scale-105 border border-white/20">
               <AppleOfficialIcon size={14} className="text-white drop-shadow-sm" />
             </div>
             <span className="font-bold text-sm tracking-tight text-white">

@@ -61,12 +61,12 @@ private final class MediaKeyEventTap: @unchecked Sendable {
             
             // Persistent loop - never exits on timeout or source state changes
             while self.isRunning {
-                _ = CFRunLoopRunInMode(.defaultMode, 0.5, false)
+                _ = CFRunLoopRunInMode(.defaultMode, 5.0, false)
                 self.checkHealth()
             }
         }
         thread.name = "com.macisland.eventtap.thread"
-        thread.qualityOfService = .userInteractive
+        thread.qualityOfService = .default
         self.workerThread = thread
         thread.start()
         
@@ -167,11 +167,6 @@ public final class SystemHUDManager: ObservableObject {
     private var getBrightnessFn: DisplayServicesGetBrightnessType?
     private var setBrightnessFn: DisplayServicesSetBrightnessType?
     
-    // Brightness monitoring state
-    private var brightnessTimer: Timer?
-    private var lastRecordedBrightness: Float = 0.5
-    private var isBrightnessInitialized = false
-    
     // Global event monitor for media keys (fallback when AX is not yet trusted)
     private var eventMonitor: Any?
     
@@ -191,7 +186,6 @@ public final class SystemHUDManager: ObservableObject {
         setupOSDManager()
         setupDisplayServices()
         setupAudioListeners()
-        startBrightnessPolling()
         setupEventTap()
         setupWatchdog()
     }
@@ -481,10 +475,6 @@ public final class SystemHUDManager: ObservableObject {
                 setBrightnessFn = unsafeBitCast(symSet, to: DisplayServicesSetBrightnessType.self)
             }
         }
-        
-        let initialB = getCurrentBrightness()
-        self.lastRecordedBrightness = initialB
-        self.isBrightnessInitialized = true
     }
     
     public func getCurrentBrightness() -> Float {
@@ -498,28 +488,7 @@ public final class SystemHUDManager: ObservableObject {
         guard let fn = setBrightnessFn else { return }
         let val = max(0.0, min(1.0, newBrightness))
         _ = fn(CGMainDisplayID(), val)
-        self.lastRecordedBrightness = val
         triggerHUD(type: .brightness, level: val)
-    }
-    
-    private func startBrightnessPolling() {
-        brightnessTimer?.invalidate()
-        // Fast, ultra-lightweight check every 80ms
-        brightnessTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self = self, self.isBrightnessInitialized else { return }
-                let current = self.getCurrentBrightness()
-                // Never let background brightness changes override an active Battery notification
-                if self.isHUDActive && self.hudType == .battery {
-                    self.lastRecordedBrightness = current
-                    return
-                }
-                if abs(current - self.lastRecordedBrightness) > 0.005 {
-                    self.lastRecordedBrightness = current
-                    self.triggerHUD(type: .brightness, level: current)
-                }
-            }
-        }
     }
     
     // MARK: - Event Tap Media Key Interception & Native OSD Suppression
@@ -757,7 +726,7 @@ public final class SystemHUDManager: ObservableObject {
     
     private func setupWatchdog() {
         watchdogTimer?.invalidate()
-        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.mediaKeyTap?.ensureHealthy()
             }
@@ -786,7 +755,6 @@ public final class SystemHUDManager: ObservableObject {
     }
     
     deinit {
-        brightnessTimer?.invalidate()
         permissionPollTimer?.invalidate()
         watchdogTimer?.invalidate()
         for obs in notificationObservers {

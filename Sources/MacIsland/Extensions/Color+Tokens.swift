@@ -42,6 +42,12 @@ extension Color {
     /// iOS Now Playing warm waveform terracotta/peach tone
     public static let islandWaveformPeach = Color(nsColor: NSColor(red: 0.85, green: 0.54, blue: 0.44, alpha: 1.0))
     
+    /// Muted waveform indicator primary color when media is paused / idle (clean subtle translucent monochrome)
+    public static let islandWaveformMuted = Color.white.opacity(0.35)
+    
+    /// Muted waveform indicator secondary color for gradient depth (clean subtle translucent monochrome)
+    public static let islandWaveformMutedSecondary = Color.white.opacity(0.24)
+    
     /// iOS Now Playing scrubber secondary muted text and device icons
     public static let islandScrubberMuted = Color.white.opacity(0.55)
     
@@ -102,8 +108,8 @@ extension Color {
     public static let islandDivider = Color.white.opacity(0.10)
     
     // MARK: - Red Monthly Calendar Tokens (matching Screenshot)
-    /// Signature month header & today's badge (using our light pink brand color)
-    public static let islandCalendarRed = Color(nsColor: NSColor(red: 0.984, green: 0.686, blue: 0.816, alpha: 1.0))
+    /// Signature month header & today's badge (using vibrant rose brand color #F43F5E)
+    public static let islandCalendarRed = Color.islandRose
     
     /// Sunday column dimmed text color
     public static let islandCalendarSunday = Color.white.opacity(0.55)
@@ -121,14 +127,14 @@ extension Color {
     /// Idle indicator needle (crisp white)
     public static let islandRulerNeedleIdle = Color.white
     
-    /// Active countdown indicator needle (our light pink brand color)
-    public static let islandRulerNeedleActive = Color(nsColor: NSColor(red: 0.984, green: 0.686, blue: 0.816, alpha: 1.0))
+    /// Active countdown indicator needle (rose brand color)
+    public static let islandRulerNeedleActive = Color.islandRose
     
-    /// Light pink capsule pill badge background for collapsed wing
-    public static let islandPillBackground = Color(nsColor: NSColor(red: 0.984, green: 0.686, blue: 0.816, alpha: 1.0))
+    /// Rose capsule pill badge background for collapsed wing
+    public static let islandPillBackground = Color.islandRose
     
-    /// Dark text inside collapsed pill badge
-    public static let islandPillText = Color(nsColor: NSColor(red: 0.12, green: 0.04, blue: 0.08, alpha: 1.0))
+    /// Crisp contrasting text inside collapsed pill badge
+    public static let islandPillText = Color.white
     
     /// Preset button active text
     public static let islandPresetActive = Color.white
@@ -142,25 +148,42 @@ extension Color {
     /// Large countdown timer font color (crisp white)
     public static let islandTimerLargeText = Color.white
     
-    // MARK: - Mac Island Light Pink Signature Brand Tokens
-    /// Light pastel pink (hero-pink-mid #FBAFD0 rgb(251, 175, 208))
-    public static let islandPinkLight = Color(nsColor: NSColor(red: 0.984, green: 0.686, blue: 0.816, alpha: 1.0))
+    /// Notch timer countdown ring active progress (crisp white)
+    public static let islandTimerRingActive = Color.white
     
-    /// Soft translucent pink for subtle ambient background
-    public static let islandPinkSubtle = Color(nsColor: NSColor(red: 0.984, green: 0.686, blue: 0.816, alpha: 0.06))
+    /// Notch timer countdown ring empty tracing outline (muted white, clearly visible, not white/80)
+    public static let islandTimerRingTrack = Color.white.opacity(0.30)
     
-    /// Dark contrasting text for light pink buttons
-    public static let islandPinkOnText = Color(nsColor: NSColor(red: 0.12, green: 0.04, blue: 0.08, alpha: 1.0))
+    // MARK: - Mac Island Rose Signature Brand Tokens
+    /// Vibrant Rose brand color (#F43F5E rgb(244, 63, 94)) — Rose 500
+    public static let islandRose = Color(nsColor: NSColor(red: 0.957, green: 0.247, blue: 0.369, alpha: 1.0))
     
-    // MARK: - Focus Tuner Tokens (Restrained Monochrome + Light Pink Accent)
-    /// Primary accent using our light pink color
-    public static let islandFocusAccent = Color(nsColor: NSColor(red: 0.984, green: 0.686, blue: 0.816, alpha: 1.0))
+    /// Rose 400 (#FB7185)
+    public static let islandRose400 = Color(nsColor: NSColor(red: 0.984, green: 0.443, blue: 0.522, alpha: 1.0))
     
-    /// Light pink pill button fill
-    public static let islandFocusButtonFill = Color(nsColor: NSColor(red: 0.984, green: 0.686, blue: 0.816, alpha: 1.0))
+    /// Rose 300 (#FDA4AF) — light pink shade
+    public static let islandRose300 = Color(nsColor: NSColor(red: 0.992, green: 0.643, blue: 0.686, alpha: 1.0))
     
-    /// Dark text on light pink button
-    public static let islandFocusButtonText = Color(nsColor: NSColor(red: 0.12, green: 0.04, blue: 0.08, alpha: 1.0))
+    /// Subtle ambient background (pure clear to keep background pitch black)
+    public static let islandRoseSubtle = Color.clear
+    
+    /// Contrasting white text for rose buttons and badges
+    public static let islandRoseOnText = Color.white
+    
+    /// Backwards compatibility aliases
+    public static let islandPinkLight = islandRose
+    public static let islandPinkSubtle = islandRoseSubtle
+    public static let islandPinkOnText = Color.white
+    
+    // MARK: - Focus Tuner Tokens (Monochrome Apple Aesthetic)
+    /// Primary accent using clean crisp white
+    public static let islandFocusAccent = Color.white
+    
+    /// Pill button fill
+    public static let islandFocusButtonFill = Color.white.opacity(0.18)
+    
+    /// Contrasting text on button
+    public static let islandFocusButtonText = Color.white
     
     /// Subtle monochrome numbers above the ruler ticks
     public static let islandFocusRulerNumber = Color.white.opacity(0.60)
@@ -171,8 +194,8 @@ extension Color {
     /// Shorter intermediate monochrome vertical ticks
     public static let islandFocusRulerTickSubtle = Color.white.opacity(0.18)
     
-    /// Light pink upward triangle cursor needle
-    public static let islandFocusIndicator = Color(nsColor: NSColor(red: 0.984, green: 0.686, blue: 0.816, alpha: 1.0))
+    /// Upward triangle cursor needle (pure crisp white)
+    public static let islandFocusIndicator = Color.white
     
     /// Clean crisp white digital clock digits
     public static let islandFocusDigits = Color.white

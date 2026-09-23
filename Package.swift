@@ -20,7 +20,8 @@ let package = Package(
             path: "Sources/MacIsland",
             exclude: [
                 "Resources/Info.plist",
-                "Resources/Logos"
+                "Resources/Logos",
+                "Resources/AppIcon.icns"
             ]
         )
     ]

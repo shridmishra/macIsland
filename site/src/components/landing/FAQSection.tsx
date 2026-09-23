@@ -11,8 +11,8 @@ import {
 export function FAQSection() {
   const faqs = [
     {
-      q: "Is Mac Island really 100% free and open source?",
-      a: "Yes! Mac Island is completely free and open-source under the MIT license. There are no subscriptions, no locked features, and no in-app purchases. You can download the universal DMG directly from GitHub Releases or build the Swift package yourself.",
+      q: "Is Mac Island free to use?",
+      a: "Yes! All core features of Mac Island are 100% free to download and use forever—no credit card required, no trial expiration, and no recurring subscriptions. In the future, an optional Pro tier will offer advanced power features, but everything available today remains completely free.",
     },
     {
       q: "Does Mac Island require Accessibility or Automation permissions?",
@@ -36,7 +36,7 @@ export function FAQSection() {
     },
     {
       q: "Is Mac Island 100% private and offline?",
-      a: "Yes. Mac Island contains zero analytics, zero trackers, and zero telemetry. It runs completely offline on your Mac, and the entire source code is available for community audit on GitHub.",
+      a: "Yes. Mac Island contains zero analytics, zero trackers, and zero telemetry. It runs completely offline on your Mac with zero cloud dependency and zero network data collection.",
     },
   ];
 
@@ -52,7 +52,7 @@ export function FAQSection() {
         </h2>
         <p className="mt-4 text-base sm:text-lg text-muted-foreground">
           Everything you need to know about getting started with Mac Island, from
-          privacy and compatibility to open-source contributions.
+          features and pricing to privacy and system compatibility.
         </p>
       </div>
 

@@ -10,14 +10,14 @@ export function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative pt-24 sm:pt-32 pb-16 flex flex-col items-center text-center overflow-hidden bg-hero-pink-gradient"
+      className="relative pt-24 sm:pt-32 pb-16 flex flex-col items-center text-center overflow-hidden bg-hero-orange-gradient"
     >
       {/* Hero Text Container matching exact Figma specifications */}
-      <div className="flex flex-col flex-nowrap justify-center items-center gap-[20px] relative top-[0px] right-[0px] bottom-[0px] left-[0px] w-full max-w-[600px] min-h-[420.602px] text-[12px] px-4 mx-auto select-none">
+      <div className="flex flex-col flex-nowrap justify-center items-center gap-[20px] relative top-[0px] right-[0px] bottom-[0px] left-[0px] w-full max-w-[600px] min-h-[420.602px] text-xs px-4 mx-auto select-none">
         {/* Top Feature Tag Pill with Official Apple Logo */}
         <Badge
-          variant="heroPink"
-          className="gap-2 px-3.5 py-1 text-[13px] font-medium shadow-sm"
+          variant="heroOrange"
+          className="gap-2 px-3.5 py-1 text-xs font-medium shadow-sm"
         >
           <AppleOfficialIcon size={14} className="text-white drop-shadow-sm" />
           <span className="font-semibold text-white drop-shadow-sm">
@@ -49,23 +49,23 @@ export function HeroSection() {
           size="lg"
           className="h-12 px-7 rounded-full shadow-2xl gap-2.5 text-sm font-medium"
         >
-          <a
-            href="https://github.com/shridhar/macIsland/releases"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a href="#pricing">
             <AppleOfficialIcon size={16} className="text-white" />
-            <span>Download for macOS</span>
+            <span>Download Free for Mac</span>
           </a>
         </Button>
 
         {/* Micro-Features Metadata Line */}
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[12px] text-white/85 font-medium drop-shadow-sm">
-          <span>Free &amp; open-source</span>
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-white/85 font-medium drop-shadow-sm">
+          <span>100% Free Core</span>
+          <span className="opacity-60">•</span>
+          <span>No subscription</span>
           <span className="opacity-60">•</span>
           <span>100% native Swift</span>
           <span className="opacity-60">•</span>
-          <span>macOS Sonoma 14.0 or later</span>
+          <span>macOS Sonoma 14.0+</span>
+          <span className="opacity-60">•</span>
+          <span>Apple Silicon & Intel</span>
         </div>
       </div>
 

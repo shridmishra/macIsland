@@ -18,7 +18,7 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Mac Island — Native Dynamic Island for macOS",
   description:
-    "Mac Island turns your MacBook notch into an intelligent Dynamic Island. Real-time media playback, synchronized lyrics, stealth system HUD, and seamless controls without ever stealing focus.",
+    "Mac Island turns your MacBook notch into an intelligent Dynamic Island. Real-time media playback, synchronized lyrics, stealth system HUD, and seamless controls. 100% free with all core features unlocked.",
   keywords: [
     "Mac Island",
     "macOS Dynamic Island",
@@ -27,12 +27,13 @@ export const metadata: Metadata = {
     "AppKit",
     "macOS utility",
     "Now Playing Mac",
+    "free macOS app",
   ],
   authors: [{ name: "Mac Island Team" }],
   openGraph: {
     title: "Mac Island — Native Dynamic Island for macOS",
     description:
-      "Turn your MacBook notch into an intelligent Dynamic Island with real-time media playback, lyrics, and stealth system HUDs.",
+      "Turn your MacBook notch into an intelligent Dynamic Island. 100% free with all core features included.",
     type: "website",
   },
 };
@@ -43,7 +44,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${inter.variable} ${instrumentSerif.variable}`}>
+    <html lang="en" className={`${inter.variable} ${instrumentSerif.variable}`}>
       <body className="min-h-screen bg-background text-foreground antialiased selection:bg-accent selection:text-accent-foreground">
         {children}
       </body>

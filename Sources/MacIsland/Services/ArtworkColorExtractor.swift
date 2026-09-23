@@ -27,17 +27,9 @@ public final class ArtworkColorExtractor: @unchecked Sendable {
             return cached.map { Color(nsColor: $0) }
         }
         
-        // 1. Recognized Video Streaming Service: strictly prioritize iconic brand pulse colors
-        // (Prime Video Cyan Blue, Netflix Red, Disney+ Royal Blue, etc.) so video scene frames don't distort it!
-        if item.service.isVideoService {
-            let srvPalette = servicePalette(for: item.service)
-            paletteCache.setObject(srvPalette as NSArray, forKey: cacheKey as NSString)
-            return srvPalette.map { Color(nsColor: $0) }
-        }
-        
-        // 2. Album Artwork (for Music items)
-        if let data = item.artworkData,
-           let image = NSImage(data: data) {
+        // 1. Album Artwork (Full-fidelity chromatic waveform matching cover art)
+        let resolvedArtworkImage: NSImage? = item.artworkImage ?? (item.artworkData.flatMap { NSImage(data: $0) })
+        if let image = resolvedArtworkImage {
             let extracted = dominantPalette(from: image)
             if !extracted.isEmpty {
                 paletteCache.setObject(extracted as NSArray, forKey: cacheKey as NSString)
@@ -45,7 +37,8 @@ public final class ArtworkColorExtractor: @unchecked Sendable {
             }
         }
         
-        // 3. Recognized Music Streaming Service
+        // 2. Recognized Streaming Service without artwork: use official brand pulse colors
+        // (Prime Video Cyan Blue, Netflix Red, Disney+ Royal Blue, YouTube Red, Spotify Green, etc.)
         if item.service != .generic {
             let srvPalette = servicePalette(for: item.service)
             paletteCache.setObject(srvPalette as NSArray, forKey: cacheKey as NSString)
@@ -151,6 +144,9 @@ public final class ArtworkColorExtractor: @unchecked Sendable {
     private func cacheKey(for item: MediaItem) -> String {
         if let data = item.artworkData {
             return "art_\(item.id)_\(data.count)"
+        }
+        if item.artworkImage != nil {
+            return "art_img_\(item.id)_\(item.title)_\(item.artist)"
         }
         return "srv_\(item.service.rawValue)_\(item.bundleIdentifier ?? item.application)"
     }

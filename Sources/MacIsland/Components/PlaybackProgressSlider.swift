@@ -39,7 +39,7 @@ public struct PlaybackProgressSlider: View {
             Text(currentTimeString)
                 .font(.system(size: 11.5, weight: .regular))
                 .monospacedDigit()
-                .foregroundColor(Color.white.opacity(0.55))
+                .foregroundStyle(Color.white.opacity(0.55))
                 .lineLimit(1)
             
             // Interactive scrubber capsule with drag tracking
@@ -98,7 +98,7 @@ public struct PlaybackProgressSlider: View {
             Text(remainingTimeString)
                 .font(.system(size: 11.5, weight: .regular))
                 .monospacedDigit()
-                .foregroundColor(Color.white.opacity(0.55))
+                .foregroundStyle(Color.white.opacity(0.55))
                 .lineLimit(1)
         }
     }

@@ -12,6 +12,7 @@ public struct MediaItem: Equatable, Sendable {
     public let artist: String
     public let album: String
     public let artworkData: Data?
+    public let artworkImage: NSImage?
     public let duration: TimeInterval
     public let currentTime: TimeInterval
     public let isPlaying: Bool
@@ -19,6 +20,7 @@ public struct MediaItem: Equatable, Sendable {
     public let bundleIdentifier: String?
     public let lastUpdated: Date
     public let url: String?
+    public let artworkUrl: String?
     
     /// Detected underlying streaming service (e.g. .primeVideo, .netflix, .youtube, .spotify)
     public let service: MediaService
@@ -39,12 +41,18 @@ public struct MediaItem: Equatable, Sendable {
         bundleIdentifier: String? = nil,
         lastUpdated: Date = Date(),
         service: MediaService? = nil,
-        url: String? = nil
+        url: String? = nil,
+        artworkUrl: String? = nil
     ) {
         self.id = id
         self.title = title
         self.album = album
         self.artworkData = artworkData
+        if let data = artworkData, !data.isEmpty {
+            self.artworkImage = NSImage(data: data)
+        } else {
+            self.artworkImage = nil
+        }
         self.duration = duration
         self.currentTime = currentTime
         self.isPlaying = isPlaying
@@ -52,12 +60,15 @@ public struct MediaItem: Equatable, Sendable {
         self.bundleIdentifier = bundleIdentifier
         self.lastUpdated = lastUpdated
         self.url = url
+        self.artworkUrl = artworkUrl
         
         let detection = MediaService.detect(
             title: title,
             album: album,
             artist: artist,
-            bundleId: bundleIdentifier
+            bundleId: bundleIdentifier,
+            appName: application,
+            url: url ?? ""
         )
         
         self.service = service ?? detection.service
@@ -74,6 +85,42 @@ public struct MediaItem: Equatable, Sendable {
     /// Returns true if this media item is from a music streaming service (Spotify, Apple Music, etc.)
     public var isMusicService: Bool {
         service.isMusicService
+    }
+    
+    /// Returns true if this media item is from a dedicated music player (Apple Music, Spotify, YouTube Music, web music services)
+    public var isMusicPlayer: Bool {
+        if isMusicService { return true }
+        if let bId = bundleIdentifier {
+            let lower = bId.lowercased()
+            if lower == "com.apple.music" || lower == "com.spotify.client" ||
+               lower.contains("amazon.music") || lower.contains("tidal") ||
+               lower.contains("deezer") || lower.contains("youtube-music") ||
+               lower.contains("coppertino.vox") || lower.contains("doppler") {
+                return true
+            }
+        }
+        if !isBrowserMedia {
+            let lowerApp = application.lowercased()
+            if (lowerApp.contains("music") || lowerApp.contains("spotify") || lowerApp.contains("tidal")) && !lowerApp.contains("player") {
+                return true
+            }
+        }
+        if let urlStr = url?.lowercased() {
+            if urlStr.contains("music.youtube.com") || urlStr.contains("open.spotify.com") ||
+               urlStr.contains("music.apple.com") || urlStr.contains("music.amazon") ||
+               urlStr.contains("soundcloud.com") || urlStr.contains("jiosaavn.com") ||
+               urlStr.contains("gaana.com") || urlStr.contains("bandcamp.com") ||
+               urlStr.contains("deezer.com") || urlStr.contains("tidal.com") ||
+               urlStr.contains("qobuz.com") {
+                return true
+            }
+        }
+        return false
+    }
+    
+    /// Playback priority: 2 for active music player, 1 for non-music media
+    public var playbackPriority: Int {
+        isMusicPlayer ? 2 : 1
     }
     
     /// Returns true if this media item is from a video streaming service (Prime Video, Netflix, Disney+, etc.)
@@ -154,5 +201,23 @@ public struct MediaItem: Equatable, Sendable {
         } else {
             return String(format: "%d:%02d", minutes, secs)
         }
+    }
+    
+    public static func == (lhs: MediaItem, rhs: MediaItem) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.title == rhs.title &&
+        lhs.artist == rhs.artist &&
+        lhs.album == rhs.album &&
+        lhs.artworkData == rhs.artworkData &&
+        lhs.duration == rhs.duration &&
+        lhs.currentTime == rhs.currentTime &&
+        lhs.isPlaying == rhs.isPlaying &&
+        lhs.application == rhs.application &&
+        lhs.bundleIdentifier == rhs.bundleIdentifier &&
+        lhs.lastUpdated == rhs.lastUpdated &&
+        lhs.url == rhs.url &&
+        lhs.artworkUrl == rhs.artworkUrl &&
+        lhs.service == rhs.service &&
+        lhs.displayTitle == rhs.displayTitle
     }
 }

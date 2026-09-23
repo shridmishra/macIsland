@@ -74,13 +74,8 @@ public final class BatteryHUDManager: ObservableObject {
             CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         }
         
-        // Background polling fallback every 2 seconds
-        pollingTimer?.invalidate()
-        pollingTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.updatePowerSourceState(triggerNotification: true)
-            }
-        }
+        // IOPSNotificationCreateRunLoopSource (registered above) provides instant push notifications
+        // on any power source change — no polling timer needed.
     }
     
     // MARK: - State Updates & Edge Detection

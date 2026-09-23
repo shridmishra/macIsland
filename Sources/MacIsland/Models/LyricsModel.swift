@@ -90,9 +90,57 @@ public struct SongLyrics: Equatable, Sendable {
     }
     
     /// Finds the synchronized lyric line currently active at the specified elapsed playback time.
+    /// Implements natural gap bridging so that lyrics switch directly from line to line
+    /// without prematurely flashing a tune icon during normal vocal pauses.
     public func line(at currentTime: TimeInterval) -> LyricLine? {
         guard !lines.isEmpty else { return nil }
-        return lines.last(where: { $0.timestamp <= currentTime })
+        
+        // Song Intro: if before the first sung line, return nil so the intro beat icon grooves
+        guard currentTime >= lines[0].timestamp else {
+            return nil
+        }
+        
+        guard let currentIndex = lines.lastIndex(where: { $0.timestamp <= currentTime }) else {
+            return nil
+        }
+        
+        let currentLine = lines[currentIndex]
+        let elapsedSinceStart = currentTime - currentLine.timestamp
+        
+        // Explicit silence or instrumental marker: return nil so rhythmic groove icon displays
+        if currentLine.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return nil
+        }
+        
+        if currentIndex + 1 < lines.count {
+            let nextLine = lines[currentIndex + 1]
+            let gap = nextLine.timestamp - currentLine.timestamp
+            
+            // If the next line is a silence marker, hold until the silence marker starts
+            if nextLine.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return currentLine
+            }
+            
+            // For continuous singing phrases with normal musical gaps (<= 8.0 seconds),
+            // bridge seamlessly from line to line without prematurely unhighlighting the line.
+            if gap <= 8.0 {
+                return currentLine
+            }
+            
+            // For longer pauses / instrumental breaks between sung lines (> 8.0 seconds):
+            // Hold the line for 6.0 seconds for comfortable reading,
+            // then return nil so the rhythmic instrumental dots / notch pulse display.
+            if elapsedSinceStart <= 6.0 {
+                return currentLine
+            }
+            return nil
+        } else {
+            // Outro / Final line: hold for 8.0 seconds for comfortable reading, then return nil
+            if elapsedSinceStart <= 8.0 {
+                return currentLine
+            }
+            return nil
+        }
     }
     
     /// Finds the upcoming next line after the currently active line.

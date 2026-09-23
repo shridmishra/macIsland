@@ -30,9 +30,8 @@ export function InteractiveIslandMockup() {
       <div className="w-full relative rounded-2xl sm:rounded-3xl border border-white/15 shadow-2xl overflow-hidden min-h-[460px] sm:min-h-[520px] flex flex-col justify-between bg-card">
         {/* Real Sonoma Wallpaper Background */}
         <div className="absolute inset-0 -z-10 overflow-hidden">
-          <Image
+          <Image alt="macOS Sonoma Wallpaper"
             src="/images/sonoma-wallpaper.webp"
-            alt="macOS Sonoma Wallpaper"
             fill
             priority
             className="object-cover object-bottom scale-105"
@@ -341,7 +340,7 @@ export function InteractiveIslandMockup() {
                   </div>
 
                   <div className="flex items-center gap-1 pt-1 text-[9px] text-stone-600">
-                    <div className="h-3 w-3 rounded-full bg-amber-500 flex items-center justify-center text-[7px] text-white font-bold">
+                    <div className="h-3 w-3 rounded-full bg-apple-orange flex items-center justify-center text-[7px] text-white font-bold">
                       S
                     </div>
                     <span>23 min ago</span>

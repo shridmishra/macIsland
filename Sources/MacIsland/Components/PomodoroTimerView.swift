@@ -24,97 +24,100 @@ public struct PomodoroTimerView: View {
     }
     
     public var body: some View {
-        VStack(spacing: 12) {
-            // 1. Orange Tuner / Ruler Scrubber with numbers, ticks, and center indicator
+        VStack(spacing: 0) {
+            // 1. Top Section: Tuner / Ruler Scrubber with pink indicator needle (▲)
             rulerScrubberView
-                .frame(height: 48)
+                .frame(height: 34)
+                .padding(.top, 2)
             
-            // 2. Bottom Action Controls & Digital Countdown
+            Spacer()
+            
+            // 2. Bottom Section: Digital Countdown on Left, Action Controls on Right
             HStack(alignment: .center) {
+                // Time on Left (padded comfortably away from edge, no "Timer" prefix)
+                Text(manager.formattedTime)
+                    .font(.system(size: 23, weight: .light, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.islandFocusDigits)
+                    .lineLimit(1)
+                    .fixedSize()
+                
+                Spacer(minLength: 12)
+                
+                // Action Controls on Right
                 if manager.timerState == .idle {
-                    // IDLE: "Start Timer" orange pill button (Screenshot 1)
                     Button {
                         manager.start()
                     } label: {
-                        Text("Start Timer")
-                            .font(.system(size: 12.5, weight: .bold))
-                            .foregroundColor(Color.islandFocusButtonText)
-                            .padding(.horizontal, 15)
-                            .padding(.vertical, 7.5)
-                            .background(
-                                Capsule()
-                                    .fill(Color.islandFocusButtonFill)
-                            )
+                        Text("Start")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.springPress(scale: 0.94, haptic: true))
+                    .onHover { isHovered in
+                        if isHovered {
+                            NSCursor.pointingHand.set()
+                        } else {
+                            NSCursor.arrow.set()
+                        }
+                    }
                     .transition(.opacity)
                 } else {
-                    // ACTIVE / RUNNING: [⏸] [✕] buttons (Screenshot 2)
+                    // ACTIVE / RUNNING: Pause / Resume & Cancel controls
                     HStack(spacing: 8) {
-                        // Pause / Play Button
                         Button {
                             manager.toggle()
                         } label: {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.islandFocusButtonFill)
-                                    .frame(width: 27, height: 27)
-                                
+                            HStack(spacing: 4) {
                                 Image(systemName: manager.timerState == .running ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(Color.islandFocusButtonText)
+                                    .font(.system(size: 9, weight: .bold))
+                                Text(manager.timerState == .running ? "Pause" : "Resume")
+                                    .font(.system(size: 11.5, weight: .semibold))
                             }
+                            .lineLimit(1)
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .fill(Color.white.opacity(0.12))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(Color.white.opacity(0.20), lineWidth: 1)
+                            )
+                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.springPress(scale: 0.90, haptic: true))
+                        .buttonStyle(.springPress(scale: 0.94, haptic: true))
                         
-                        // Cancel [✕] Button
                         Button {
                             manager.cancel()
                         } label: {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.islandFocusCloseBackground)
-                                    .frame(width: 27, height: 27)
-                                
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 9.5, weight: .bold))
-                                    .foregroundColor(Color.islandFocusCloseIcon)
-                            }
+                            Text("Cancel")
+                                .font(.system(size: 11.5, weight: .medium))
+                                .lineLimit(1)
+                                .foregroundStyle(Color.islandTextTertiary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.white.opacity(0.08))
+                                )
+                                .contentShape(Rectangle())
                         }
-                        .buttonStyle(.springPress(scale: 0.90, haptic: true))
+                        .buttonStyle(.springPress(scale: 0.94, haptic: true))
                     }
                     .transition(.opacity)
                 }
-                
-                Spacer(minLength: 8)
-                
-                // Digital Timer Display (Screenshot 1 & 2)
-                if manager.timerState == .idle {
-                    // Idle: "45:00" in orange
-                    Text(manager.formattedTime)
-                        .font(.system(size: 30, weight: .light, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundColor(Color.islandFocusDigits)
-                        .lineLimit(1)
-                        .fixedSize()
-                } else {
-                    // Running: "Timer  44:57" in orange
-                    HStack(alignment: .lastTextBaseline, spacing: 5) {
-                        Text("Timer")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(Color.islandFocusTimerLabel)
-                        
-                        Text(manager.formattedTime)
-                            .font(.system(size: 28, weight: .regular, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundColor(Color.islandFocusDigits)
-                            .lineLimit(1)
-                            .fixedSize()
-                    }
-                }
             }
+            .padding(.leading, 18)
+            .padding(.trailing, 14)
+            .padding(.bottom, 6)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
     
     // MARK: - Tuner Scrubber View
@@ -148,8 +151,8 @@ public struct PomodoroTimerView: View {
                         guard x >= -10 && x <= size.width + 10 else { continue }
                         
                         let isMajor = (m % 5 == 0)
-                        let tickHeight: CGFloat = isMajor ? 16.0 : 9.5
-                        let tickY: CGFloat = 20.0
+                        let tickHeight: CGFloat = isMajor ? 11.0 : 6.5
+                        let tickY: CGFloat = 15.0
                         
                         // Draw tick line
                         var tickPath = Path()
@@ -160,18 +163,18 @@ public struct PomodoroTimerView: View {
                         context.stroke(
                             tickPath,
                             with: .color(strokeColor),
-                            lineWidth: 1.2
+                            lineWidth: 1.1
                         )
                         
                         // Draw major number label
                         if isMajor {
                             let text = Text("\(m)")
-                                .font(.system(size: 9.5, weight: .semibold, design: .rounded))
-                                .foregroundColor(Color.islandFocusRulerNumber)
+                                .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                                .foregroundStyle(Color.islandFocusRulerNumber)
                             
                             context.draw(
                                 text,
-                                at: CGPoint(x: x, y: 8),
+                                at: CGPoint(x: x, y: 6),
                                 anchor: .center
                             )
                         }
@@ -190,14 +193,14 @@ public struct PomodoroTimerView: View {
                     )
                 )
                 
-                // Orange Upward Triangle Pointer (▲) centered below ticks
+                // White Upward Triangle Pointer (▲) centered below ticks
                 VStack(spacing: 0) {
                     Spacer()
-                        .frame(height: 38)
+                        .frame(height: 27)
                     
                     Image(systemName: "triangle.fill")
-                        .font(.system(size: 6.5, weight: .bold))
-                        .foregroundColor(Color.islandFocusIndicator)
+                        .font(.system(size: 5.5, weight: .bold))
+                        .foregroundStyle(Color.white)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
             }

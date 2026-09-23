@@ -70,14 +70,14 @@ public struct MarqueeText: View {
             if !isOverflowing {
                 Text(text)
                     .font(font)
-                    .foregroundColor(color)
+                    .foregroundStyle(color)
                     .lineLimit(1)
                     .frame(width: containerWidth, alignment: .leading)
             } else {
                 let totalDistance = textWidth + spacing
                 let settleDuration: Double = 0.35
                 
-                TimelineView(.animation(paused: isTimelinePaused)) { timeline in
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: isTimelinePaused)) { timeline in
                     let currentOffset = calculateOffset(
                         timelineDate: timeline.date,
                         totalDistance: totalDistance,
@@ -89,13 +89,13 @@ public struct MarqueeText: View {
                     HStack(spacing: spacing) {
                         Text(text)
                             .font(font)
-                            .foregroundColor(color)
+                            .foregroundStyle(color)
                             .lineLimit(1)
                             .fixedSize()
                         
                         Text(text)
                             .font(font)
-                            .foregroundColor(color)
+                            .foregroundStyle(color)
                             .lineLimit(1)
                             .fixedSize()
                     }

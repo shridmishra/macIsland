@@ -758,10 +758,15 @@ public final class LyricsRomanizer: Sendable {
         s = s.replacingOccurrences(of: "uṁ", with: "un")
         s = s.replacingOccurrences(of: "iṁ", with: "in")
         
-        // Long vowels → natural doubling
+        // Long vowels → natural singable Latin script conventions
+        // Special grammatical suffix forms first
+        s = s.replacingOccurrences(of: "āvāṅgā", with: "aavanga")
+        s = s.replacingOccurrences(of: "āvāṅgī", with: "aavangi")
+        s = s.replacingOccurrences(of: "āvā", with: "aava")
+        
         s = s.replacingOccurrences(of: "ā", with: "aa")
-        s = s.replacingOccurrences(of: "ī", with: "ee")
-        s = s.replacingOccurrences(of: "ū", with: "oo")
+        s = s.replacingOccurrences(of: "ī", with: "i")
+        s = s.replacingOccurrences(of: "ū", with: "u")
         s = s.replacingOccurrences(of: "ē", with: "e")
         s = s.replacingOccurrences(of: "ō", with: "o")
         
@@ -809,7 +814,7 @@ public final class LyricsRomanizer: Sendable {
     /// Maps common GTX romanization variants to natural colloquial Roman Urdu/Hindi/Punjabi spelling.
     private let standardWordMap: [String: String] = [
         // Pronouns & particles
-        "min": "main", "mein": "main",
+        "min": "main", "mein": "main", "maim": "main",
         "tam": "tum",
         "ham": "hum",
         "men": "mein", "mem": "mein",
@@ -819,6 +824,8 @@ public final class LyricsRomanizer: Sendable {
         "kah": "ke",
         "ya": "ye",
         "pah": "pe",
+        "tu": "tu", "too": "tu",
+        "ve": "ve",
         
         // Negation & conjunctions
         "nihen": "nahin", "nahen": "nahin",
@@ -854,13 +861,24 @@ public final class LyricsRomanizer: Sendable {
         "hoi": "huyi",
         "rahin": "rahein",
         
-        // Punjabi
+        // Punjabi & Gurmukhi
         "vica": "vich",
         "kaci": "kachi",
         "yada": "yaad",
+        "yaada": "yaad",
         "avanga": "aavanga",
+        "aavaangaa": "aavanga",
+        "aavangaa": "aavanga",
         "mainu": "mainu",
         "tainu": "tenu",
+        "tainuu": "tenu",
+        "launga": "laung",
+        "laci": "laachi",
+        "laaci": "laachi",
+        "laachee": "laachi",
+        "gavaci": "gavachi",
+        "gavaaci": "gavachi",
+        "gavaachee": "gavaachi",
         
         // Common GTX variants
         "kisa": "kaisa",
@@ -883,7 +901,6 @@ public final class LyricsRomanizer: Sendable {
         "calata": "chalta", "calataa": "chaltaa",
         "accha": "acchha", "acchaa": "achhaa",
         "rakhana": "rakhna", "rakhanaa": "rakhna",
-        "yaada": "yaad",
         "raataa": "raat",
         "baataa": "baat",
         

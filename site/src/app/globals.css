@@ -25,44 +25,58 @@
 }
 
 :root {
-  --background: rgb(255, 255, 255);
-  --foreground: rgb(17, 17, 20);
+  --background: rgb(254, 246, 239);
+  --foreground: rgb(24, 18, 16);
 
-  --muted-foreground: rgb(100, 105, 115);
-  --muted: rgb(243, 244, 246);
+  --muted-foreground: rgb(125, 110, 102);
+  --muted: rgb(245, 236, 227);
 
-  --card: rgb(255, 255, 255);
-  --card-foreground: rgb(17, 17, 20);
-  --card-secondary: rgb(248, 249, 251);
+  --card: rgb(250, 241, 233);
+  --card-foreground: rgb(24, 18, 16);
+  --card-secondary: rgb(245, 235, 225);
 
-  --popover: rgb(255, 255, 255);
-  --popover-foreground: rgb(17, 17, 20);
+  --popover: rgb(254, 248, 242);
+  --popover-foreground: rgb(24, 18, 16);
 
-  --primary: rgb(17, 17, 20);
+  --primary: rgb(24, 18, 16);
   --primary-foreground: rgb(255, 255, 255);
 
-  --secondary: rgb(243, 244, 246);
-  --secondary-foreground: rgb(17, 17, 20);
+  --secondary: rgb(243, 232, 220);
+  --secondary-foreground: rgb(24, 18, 16);
 
-  --accent: rgb(238, 240, 244);
-  --accent-foreground: rgb(17, 17, 20);
+  --accent: rgb(255, 206, 192);
+  --accent-foreground: rgb(24, 18, 16);
 
   --destructive: rgb(239, 68, 68);
   --destructive-foreground: rgb(255, 255, 255);
 
-  --border: rgba(0, 0, 0, 0.08);
-  --border-subtle: rgba(0, 0, 0, 0.04);
-  --border-highlight: rgba(0, 0, 0, 0.16);
+  --border: rgba(60, 35, 20, 0.09);
+  --border-subtle: rgba(60, 35, 20, 0.05);
+  --border-highlight: rgba(60, 35, 20, 0.18);
 
-  --input: rgb(243, 244, 246);
-  --ring: rgba(0, 0, 0, 0.2);
+  --input: rgb(245, 236, 227);
+  --ring: rgba(253, 160, 115, 0.4);
   --radius: 0.85rem;
+
+  /* Download Page Design Tokens */
+  --card-download: rgb(250, 241, 233);
+  --card-download-border: rgba(60, 35, 20, 0.08);
+  --card-download-shadow: rgba(40, 20, 10, 0.04);
+  --btn-download: rgb(243, 232, 220);
+  --btn-download-hover: rgb(235, 222, 208);
+  --btn-download-text: rgb(46, 32, 26);
+  --btn-download-border: rgba(60, 35, 20, 0.09);
+  --highlight-pill: rgb(255, 196, 184);
+  --watermark: rgba(60, 35, 20, 0.05);
+  --social-btn-bg: rgba(60, 35, 20, 0.05);
+  --social-btn-border: rgba(60, 35, 20, 0.08);
+  --social-btn-hover: rgba(60, 35, 20, 0.09);
 
   /* Solid Apple Surface Tokens */
   --surface-base: rgb(255, 255, 255);
-  --surface-elevated: rgb(248, 249, 251);
-  --surface-hover: rgb(241, 243, 246);
-  --surface-active: rgb(233, 236, 240);
+  --surface-elevated: rgb(250, 241, 233);
+  --surface-hover: rgb(244, 233, 222);
+  --surface-active: rgb(238, 225, 212);
   --notch-surface: rgb(0, 0, 0);
 
   /* Dark Sections & Footer Tokens */
@@ -89,15 +103,15 @@
   --apple-orange: rgb(255, 159, 10);
   --apple-purple: rgb(191, 90, 242);
 
-  /* Lighter Pastel Pink Hero Design Tokens */
-  --hero-pink-start: rgb(246, 145, 188);
-  --hero-pink-mid: rgb(251, 175, 208);
-  --hero-pink-light: rgb(253, 208, 228);
-  --hero-pink-subtle: rgb(255, 236, 245);
-  --hero-pink-text: rgb(255, 255, 255);
-  --hero-pink-text-muted: rgba(255, 255, 255, 0.92);
-  --hero-pink-badge: rgba(255, 255, 255, 0.24);
-  --hero-pink-badge-border: rgba(255, 255, 255, 0.45);
+  /* Lighter Pastel Orange Hero Design Tokens */
+  --hero-orange-start: rgb(253, 160, 115);
+  --hero-orange-mid: rgb(254, 190, 155);
+  --hero-orange-light: rgb(255, 220, 198);
+  --hero-orange-subtle: rgb(255, 243, 236);
+  --hero-orange-text: rgb(255, 255, 255);
+  --hero-orange-text-muted: rgba(255, 255, 255, 0.92);
+  --hero-orange-badge: rgba(255, 255, 255, 0.26);
+  --hero-orange-badge-border: rgba(255, 255, 255, 0.45);
   --hero-btn-black: rgb(0, 0, 0);
   --hero-btn-black-text: rgb(255, 255, 255);
   --hero-btn-white: rgb(255, 255, 255);
@@ -128,6 +142,18 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  --color-card-download: var(--card-download);
+  --color-card-download-border: var(--card-download-border);
+  --color-btn-download: var(--btn-download);
+  --color-btn-download-hover: var(--btn-download-hover);
+  --color-btn-download-text: var(--btn-download-text);
+  --color-btn-download-border: var(--btn-download-border);
+  --color-highlight-pill: var(--highlight-pill);
+  --color-watermark: var(--watermark);
+  --color-social-btn-bg: var(--social-btn-bg);
+  --color-social-btn-border: var(--social-btn-border);
+  --color-social-btn-hover: var(--social-btn-hover);
+
   --color-surface-base: var(--surface-base);
   --color-surface-elevated: var(--surface-elevated);
   --color-surface-hover: var(--surface-hover);
@@ -154,14 +180,14 @@
   --color-apple-orange: var(--apple-orange);
   --color-apple-purple: var(--apple-purple);
 
-  --color-hero-pink-start: var(--hero-pink-start);
-  --color-hero-pink-mid: var(--hero-pink-mid);
-  --color-hero-pink-light: var(--hero-pink-light);
-  --color-hero-pink-subtle: var(--hero-pink-subtle);
-  --color-hero-pink-text: var(--hero-pink-text);
-  --color-hero-pink-text-muted: var(--hero-pink-text-muted);
-  --color-hero-pink-badge: var(--hero-pink-badge);
-  --color-hero-pink-badge-border: var(--hero-pink-badge-border);
+  --color-hero-orange-start: var(--hero-orange-start);
+  --color-hero-orange-mid: var(--hero-orange-mid);
+  --color-hero-orange-light: var(--hero-orange-light);
+  --color-hero-orange-subtle: var(--hero-orange-subtle);
+  --color-hero-orange-text: var(--hero-orange-text);
+  --color-hero-orange-text-muted: var(--hero-orange-text-muted);
+  --color-hero-orange-badge: var(--hero-orange-badge);
+  --color-hero-orange-badge-border: var(--hero-orange-badge-border);
   --color-hero-btn-black: var(--hero-btn-black);
   --color-hero-btn-black-text: var(--hero-btn-black-text);
   --color-hero-btn-white: var(--hero-btn-white);
@@ -192,19 +218,19 @@ body {
   overflow-x: hidden;
 }
 
-/* Lighter Pastel Pink Hero Gradient */
-.bg-hero-pink-gradient {
+/* Lighter Pastel Orange Hero Gradient */
+.bg-hero-orange-gradient {
   background: linear-gradient(
     180deg,
-    var(--hero-pink-start) 0%,
-    var(--hero-pink-mid) 40%,
-    var(--hero-pink-light) 75%,
-    var(--hero-pink-subtle) 100%
+    var(--hero-orange-start) 0%,
+    var(--hero-orange-mid) 40%,
+    var(--hero-orange-light) 75%,
+    var(--hero-orange-subtle) 100%
   );
 }
 
 .hero-text-shadow {
-  filter: drop-shadow(0 2px 12px rgba(180, 50, 110, 0.32));
+  filter: drop-shadow(0 2px 12px rgba(200, 95, 45, 0.32));
 }
 
 /* Solid Apple UI Component Styles */

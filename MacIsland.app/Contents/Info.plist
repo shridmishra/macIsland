@@ -10,6 +10,10 @@
     <string>Mac Island</string>
     <key>CFBundleExecutable</key>
     <string>MacIsland</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -26,5 +30,9 @@
     <string>Mac Island requires Apple Events to detect streaming services and active media player names.</string>
     <key>NSAccessibilityUsageDescription</key>
     <string>Mac Island requires Accessibility permissions to intercept volume and brightness keys and suppress native system HUD overlays.</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Mac Island requires Bluetooth access to display connected audio devices and connect to paired headphones.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>Mac Island requires Bluetooth access to display connected audio devices and connect to paired headphones.</string>
 </dict>
 </plist>

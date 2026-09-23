@@ -58,7 +58,7 @@ export function MacIslandAppIcon({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "h-6 w-6 rounded-[7px] bg-gradient-to-br from-apple-blue via-apple-purple to-hero-pink-mid flex items-center justify-center p-0.5 shadow-md border border-white/20 shrink-0",
+        "h-6 w-6 rounded-[7px] bg-gradient-to-br from-apple-blue via-apple-purple to-hero-orange-mid flex items-center justify-center p-0.5 shadow-md border border-white/20 shrink-0",
         className
       )}
     >
@@ -99,26 +99,22 @@ const DEFAULT_MACISLAND_MENU: FooterLink[] = [
   { label: "Home", href: "#hero" },
   { label: "Features", href: "#features" },
   { label: "FAQ", href: "#faq" },
-  { label: "Free Download", href: "#pricing" },
-  { label: "Architecture", href: "https://github.com/shridhar/macIsland#architecture-for-web--typescript-developers", external: true },
+  { label: "Pricing (Free)", href: "#pricing" },
 ];
 
 const DEFAULT_MACISLAND_NAV: FooterLink[] = [
-  { label: "GitHub Releases", href: "https://github.com/shridhar/macIsland/releases", external: true },
-  { label: "Source Code", href: "https://github.com/shridhar/macIsland", external: true },
-  { label: "Report an Issue", href: "https://github.com/shridhar/macIsland/issues", external: true },
+  { label: "Download Free for Mac", href: "#pricing" },
   { label: "Privacy policy", href: "/privacy" },
   { label: "Terms of service", href: "/terms" },
+  { label: "Customer Support", href: "mailto:support@macisland.app", external: true },
 ];
 
 const DEFAULT_MACISLAND_PRODUCTS: FooterLink[] = [
-  { label: "MediaRemote CLI", href: "https://github.com/shridhar/macIsland#1-zero-permissions-universal-media-detection-mediaremoteframework", external: true },
-  { label: "NSPanel Layer 25", href: "https://github.com/shridhar/macIsland#2-high-performance-windowing-architecture-nspanel", external: true },
-  { label: "SwiftUI Bridge", href: "https://github.com/shridhar/macIsland", external: true },
   { label: "Screen Movie", href: "https://screenmovie.app", external: true },
   { label: "Cooldock", href: "https://cooldock.app", external: true },
   { label: "Macapp.Supply", href: "https://macapp.supply", external: true },
   { label: "Runey.app", href: "https://runey.app", external: true },
+  { label: "Revone.app", href: "https://revone.app", external: true },
 ];
 
 export function Footer({
@@ -151,21 +147,21 @@ export function Footer({
     (isMacIsland
       ? "Mac Island transforms your MacBook notch into an intelligent Dynamic Island, automatically grouping live media playback, lyrics, and stealth system HUDs in seconds."
       : "Supaste saves your clipboard and screenshots in a beautiful visual history, automatically grouped by type, app, and custom categories, so you can search, find, and paste anything back in seconds.");
-  const resolvedDownloadText = downloadText ?? "Download for macOS";
+  const resolvedDownloadText = downloadText ?? (isMacIsland ? "Download Free for Mac" : "Download for macOS");
   const resolvedDownloadHref =
     downloadHref ??
     (isMacIsland
-      ? "https://github.com/shridhar/macIsland/releases"
+      ? "#pricing"
       : "https://supaste.com");
   const resolvedCopyright =
     copyrightText ??
     (isMacIsland
-      ? "© 2026 Mac Island · 100% Free & Open Source"
+      ? "© 2026 Mac Island · Free & Open Core"
       : "© 2026 Supaste.com - All rights reserved");
   const resolvedCreatorName = creatorName ?? "Solt Wagner";
   const resolvedCreatorAvatar = creatorAvatar ?? "/images/creator-avatar.png";
   const resolvedCreatorHref =
-    creatorHref ?? (isMacIsland ? "https://github.com/shridhar/macIsland" : "https://x.com/soltwagner");
+    creatorHref ?? (isMacIsland ? "https://macisland.app" : "https://x.com/soltwagner");
 
   const resolvedMenu = menuLinks ?? (isMacIsland ? DEFAULT_MACISLAND_MENU : DEFAULT_SUPASTE_MENU);
   const resolvedNav = navLinks ?? (isMacIsland ? DEFAULT_MACISLAND_NAV : DEFAULT_SUPASTE_NAV);
@@ -235,10 +231,10 @@ export function Footer({
 
               {/* Bold / Italic Serif Headline */}
               <div className="space-y-0.5 pt-1">
-                <h3 className="text-3xl sm:text-[34px] font-bold tracking-tight text-footer-foreground leading-tight">
+                <h3 className="text-3xl sm:text-4xl font-bold tracking-tight text-footer-foreground leading-tight">
                   {resolvedHeadlineBold}
                 </h3>
-                <p className="text-3xl sm:text-[36px] font-apple-serif italic font-normal text-footer-foreground leading-tight tracking-tight">
+                <p className="text-3xl sm:text-4xl font-apple-serif italic font-normal text-footer-foreground leading-tight tracking-tight">
                   {resolvedHeadlineItalic}
                 </p>
               </div>
@@ -269,7 +265,7 @@ export function Footer({
 
               {/* Copyright Notice */}
               <div className="pt-2">
-                <p className="text-[11px] text-footer-subtle">
+                <p className="text-xs text-footer-subtle">
                   {resolvedCopyright}
                 </p>
               </div>
@@ -286,9 +282,8 @@ export function Footer({
                   className="inline-flex items-center gap-1.5 text-footer-foreground hover:underline font-medium transition-colors"
                 >
                   {resolvedCreatorAvatar && (
-                    <Image
+                    <Image alt={resolvedCreatorName}
                       src={resolvedCreatorAvatar}
-                      alt={resolvedCreatorName}
                       width={18}
                       height={18}
                       className="rounded-full object-cover shrink-0 border border-white/10"
@@ -381,7 +376,7 @@ export function Footer({
               <span className="font-bold text-base tracking-tighter text-footer-foreground group-hover:scale-105 transition-transform font-serif leading-none">
                 W.
               </span>
-              <span className="text-[10px] uppercase tracking-widest text-footer-muted group-hover:text-footer-foreground font-semibold [writing-mode:vertical-rl] transition-colors leading-none">
+              <span className="text-xs uppercase tracking-widest text-footer-muted group-hover:text-footer-foreground font-semibold [writing-mode:vertical-rl] transition-colors leading-none">
                 Honors
               </span>
             </a>

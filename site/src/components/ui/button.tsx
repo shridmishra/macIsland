@@ -30,6 +30,10 @@ const buttonVariants = cva(
           "bg-hero-btn-white text-hero-btn-white-text hover:opacity-90 active:scale-[0.98] shadow-md font-semibold text-xs",
         appleWhite:
           "bg-hero-btn-white text-hero-btn-white-text hover:opacity-90 active:scale-[0.98] shadow-sm font-medium text-xs rounded-lg",
+        download:
+          "bg-btn-download text-btn-download-text hover:bg-btn-download-hover active:scale-[0.98] border border-btn-download-border shadow-xs font-medium rounded-xl",
+        social:
+          "bg-social-btn-bg text-foreground/80 hover:text-foreground hover:bg-social-btn-hover active:scale-[0.95] border border-social-btn-border rounded-xl",
       },
       size: {
         default: "h-10 px-5 py-2",
@@ -37,6 +41,7 @@ const buttonVariants = cva(
         lg: "h-13 px-8 text-base font-semibold",
         icon: "h-9 w-9 p-0 rounded-full",
         iconSm: "h-7 w-7 p-0 rounded-full",
+        iconBox: "h-9 w-9 p-0 rounded-xl",
       },
     },
     defaultVariants: {

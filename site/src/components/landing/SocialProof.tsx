@@ -1,25 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { GithubIcon } from "@hugeicons/core-free-icons";
+import { AppleOfficialIcon } from "@/components/ui/apple-icon";
 import { Badge } from "@/components/ui/badge";
-import { Icon } from "@/components/ui/icon";
 
 export function SocialProof() {
   return (
     <section className="py-12 border-y border-border-subtle bg-card-secondary/50 relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 flex flex-col items-center text-center">
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-6">
-          Featured & Celebrated Across The Mac Community
+          Featured &amp; Celebrated Across The Mac Community
         </p>
 
         {/* Badges Grid - Solid Apple Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 w-full max-w-4xl">
           <div className="apple-card flex items-center justify-center gap-2 py-3 px-4 rounded-xl">
-            <Icon icon={GithubIcon} size={16} className="text-foreground" />
-            <span className="text-xs font-semibold text-foreground">GitHub</span>
+            <AppleOfficialIcon size={14} className="text-foreground" />
+            <span className="text-xs font-semibold text-foreground">Apple Silicon</span>
             <Badge variant="hud" className="text-[10px] py-0 px-1.5 ml-1">
-              Trending
+              M1–M4
             </Badge>
           </div>
 

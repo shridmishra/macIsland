@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/shridhar/macIsland/main/audit-config-schema.json",
+  "version": "1.0.0",
+  "name": "MacIsland Site Audit Configuration",
+  "scanDir": "src",
+  "framework": "nextjs",
+  "strict": false,
+  "tests": {
+    "colors": {
+      "enabled": true,
+      "description": "Hardcoded hex, RGB/HSL, and arbitrary Tailwind color classes",
+      "ignore": [
+        "globals.css",
+        "**/*.svg",
+        "**/flags/**",
+        "**/logos/**",
+        "**/manifest.ts",
+        "**/opengraph-image.tsx",
+        "**/twitter-image.tsx"
+      ]
+    },
+    "elements": {
+      "enabled": true,
+      "description": "Banned native HTML tags (<button>, <input>, etc.) in favor of UI components",
+      "ignore": [
+        "src/components/ui/**"
+      ]
+    },
+    "sparkles": {
+      "enabled": true,
+      "description": "Zero sparkle icons, AI star glyphs, and unmapped arbitrary clip-paths",
+      "ignore": []
+    },
+    "typography": {
+      "enabled": true,
+      "description": "Typography scale tokens, font hierarchy, and unstyled headings",
+      "ignore": [
+        "globals.css",
+        "src/components/landing/InteractiveIslandMockup.tsx",
+        "src/components/landing/InteractiveNotchShelf.tsx",
+        "src/components/landing/BentoFeatures.tsx",
+        "src/components/landing/BottomCtaBanner.tsx",
+        "src/components/landing/SocialProof.tsx",
+        "src/components/landing/PricingSection.tsx",
+        "src/components/landing/HeroSection.tsx"
+      ]
+    },
+    "no-small-text": {
+      "enabled": false,
+      "description": "Sub-14px typography check disabled for desktop UI mockup landing page"
+    },
+    "depth": {
+      "enabled": true,
+      "description": "Advisory depth guidance: tonal backgrounds & soft shadows vs heavy borders",
+      "ignore": []
+    },
+    "a11y": {
+      "enabled": true,
+      "description": "Accessibility: icon button labels, image alt text, and dead buttons",
+      "ignore": []
+    },
+    "i18n": {
+      "enabled": false,
+      "description": "Untranslated text strings in JSX and RTL logical CSS properties",
+      "ignore": []
+    },
+    "routes": {
+      "enabled": true,
+      "description": "Next.js App Router boundaries and static public assets",
+      "ignore": []
+    },
+    "mocks": {
+      "enabled": true,
+      "description": "Mock data leakage, seeded fallbacks, and hardcoded backend URLs",
+      "ignore": [
+        "src/data/**",
+        "**/mock-**"
+      ]
+    },
+    "api": {
+      "enabled": false,
+      "description": "Live HTTP & WebSocket API reachability and latency checks"
+    }
+  }
+}

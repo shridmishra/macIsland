@@ -17,6 +17,11 @@ cp "${BUILD_BIN}" "${APP_DIR}/Contents/MacOS/MacIsland"
 # Copy Info.plist
 cp "Sources/MacIsland/Resources/Info.plist" "${APP_DIR}/Contents/Info.plist"
 
+# Copy AppIcon.icns
+if [ -f "Sources/MacIsland/Resources/AppIcon.icns" ]; then
+    cp "Sources/MacIsland/Resources/AppIcon.icns" "${APP_DIR}/Contents/Resources/AppIcon.icns"
+fi
+
 # Ad-hoc sign the app bundle with a stable designated requirement
 codesign --force --deep --sign - -r='designated => identifier "com.macisland.app"' "${APP_DIR}"
 
